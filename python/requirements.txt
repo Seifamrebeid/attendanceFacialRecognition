@@ -1,0 +1,7 @@
+opencv-python
+numpy
+pillow
+insightface
+onnxruntime
+scikit-learn
+faiss-cpu     # optional
