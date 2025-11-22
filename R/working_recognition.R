@@ -179,12 +179,12 @@ cat("🚀 Starting face recognition...\n")
 cat("   (This will open a camera window)\n\n")
 
 # Add PIL to imports
-system2(file.path("..", "r_python_env", "Scripts", "pip.exe"), 
-        args = c("install", "pandas"), 
+system2(file.path("venv", "Scripts", "pip.exe"),
+        args = c("install", "pandas"),
         stdout = FALSE, stderr = FALSE)
 
 # Run the recognition script
-system2(file.path("..", "r_python_env", "Scripts", "python.exe"), 
+system2(file.path("venv", "Scripts", "python.exe"),
         args = "face_recognition.py")
 
 cat("\n✅ Face recognition completed!\n")
