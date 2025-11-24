@@ -2,7 +2,7 @@
 # This creates Python scripts and executes them directly to avoid reticulate issues
 
 cat("🎯 R Facial Recognition - Quick Setup\n")
-cat("=====================================\n\n")
+cat("====== ===============================\n\n")
 
 # First, let's create the face encoding script in Python
 python_encode_script <- '
@@ -82,7 +82,8 @@ if (file.exists("face_encodings.pkl")) {
   
   # Load the encodings in R (we\'ll need to install more packages for pickle)
   system2(file.path("venv", "Scripts", "pip.exe"),
-          args = c("install", "pickle5"))  cat("\n🎉 Setup completed!\n")
+          args = c("install", "pickle5")) 
+ cat("\n🎉 Setup completed!\n")
   cat("To use the system:\n")
   cat("1. Face encodings are in face_encodings.pkl\n")  
   cat("2. Use Python directly for recognition\n")
