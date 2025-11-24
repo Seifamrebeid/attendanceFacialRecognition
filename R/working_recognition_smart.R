@@ -1,4 +1,20 @@
+# working_recognition_smart.R
+# Smart Auto-Detection Attendance System with entry/exit tracking
 
+cat("🎯 Smart Auto-Detection Attendance System\n")
+cat("=========================================\n")
+cat("🤖 Features: AI Auto-Capture + Entry/Exit Tracking\n\n")
+
+# Check if face encodings exist
+if (!file.exists("face_encodings.pkl")) {
+  cat("❌ Face encodings not found. Run quick_setup.R first.\n")
+  stop("Face encodings required")
+}
+
+cat("✅ Face encodings found!\n")
+
+# Create smart auto-detection script with entry/exit tracking
+python_recognition_script <- '
 import cv2
 import numpy as np
 import pickle
@@ -144,7 +160,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     cv2.rectangle(canvas, (panel_x - 10, stats_y - 20), (panel_x + 610, stats_y + 80), (50, 30, 30), -1)
     cv2.rectangle(canvas, (panel_x - 10, stats_y - 20), (panel_x + 610, stats_y + 80), (255, 255, 0), 2)
     
-    cv2.putText(canvas, "TODAYS STATISTICS", (panel_x, stats_y), 
+    cv2.putText(canvas, \"TODAYS STATISTICS\", (panel_x, stats_y), 
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
     
     total_entries = len(attendance_log)
@@ -329,7 +345,7 @@ def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
     
     # Draw zone rectangle
     cv2.rectangle(frame, (zone_left, zone_top), (zone_right, zone_bottom), (0, 255, 255), 2)
-    draw_text_camera(frame, "OPTIMAL ZONE", (zone_left, zone_top - 10), 0.8, (0, 255, 255), 2)
+    draw_text_camera(frame, \"OPTIMAL ZONE\", (zone_left, zone_top - 10), 0.8, (0, 255, 255), 2)
     
     # Draw center crosshair
     cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), (0, 255, 255), 2)
@@ -426,7 +442,7 @@ def read_firestore_attendance():
         
         print(f"📖 Read {len(firestore_records)} records from Firestore:")
         for record in firestore_records[-3:]:  # Show last 3
-            print(f"  {record["timestamp"]} - {record["name"]} {record["action"]}")
+            print(f"  {record[\"timestamp\"]} - {record[\"name\"]} {record[\"action\"]}")
         
         return firestore_records
     except Exception as e:
@@ -439,7 +455,7 @@ def write_to_firestore(attendance_log):
         return
     
     try:
-        print("\n💾 Writing to Firestore...")
+        print("\\n💾 Writing to Firestore...")
         batch = db.batch()
         
         for entry in attendance_log:
@@ -554,7 +570,7 @@ def log_attendance(name, similarity, action):
         }
         session_id = session_counter
         session_counter += 1
-        print(f"🟢 {name} JOINED at {timestamp.strftime("%H:%M:%S")}")
+        print(f"🟢 {name} JOINED at {timestamp.strftime(\"%H:%M:%S\")}")
         
     elif action == "LEFT" and name in current_sessions:
         start_time = current_sessions[name]["start_time"]
@@ -566,7 +582,7 @@ def log_attendance(name, similarity, action):
         hours = int(duration_minutes // 60)
         minutes = int(duration_minutes % 60)
         duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
-        print(f"🔴 {name} LEFT at {timestamp.strftime("%H:%M:%S")} (Duration: {duration_str})")
+        print(f"🔴 {name} LEFT at {timestamp.strftime(\"%H:%M:%S\")} (Duration: {duration_str})")
     
     attendance_log.append({
         "name": name,
@@ -580,7 +596,7 @@ def log_attendance(name, similarity, action):
     })
 
 # Initialize camera
-print("\nInitializing camera...")
+print("\\nInitializing camera...")
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("❌ Cannot open camera")
@@ -592,7 +608,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-print("\n🤖 Smart Auto-Detection Attendance System Started!")
+print("\\n🤖 Smart Auto-Detection Attendance System Started!")
 print("🎯 AI-Powered Face Recognition")
 print("📊 Full-Screen Professional Interface")
 print("Controls:")
@@ -681,7 +697,7 @@ try:
                 if is_stable:
                     if stable_detection_start is None:
                         stable_detection_start = current_time
-                        print(f"\n🎯 Stable position detected! Hold for {stability_duration} seconds...")
+                        print(f"\\n🎯 Stable position detected! Hold for {stability_duration} seconds...")
                     
                     # Check if held stable long enough
                     time_stable = (current_time - stable_detection_start).total_seconds()
@@ -720,7 +736,7 @@ try:
             
             # Process face recognition
             current_time_str = datetime.now().strftime("%H:%M:%S")
-            print(f"\n🤖 Auto-detection triggered! Scanning faces at {current_time_str}...")
+            print(f"\\n🤖 Auto-detection triggered! Scanning faces at {current_time_str}...")
             
             # Use the boxes we already detected
             if boxes is not None:
@@ -875,7 +891,7 @@ try:
         
         # Backup manual capture with SPACE
         if key == ord(" "):
-            print(f"\n📸 Manual capture at {current_time}...")
+            print(f"\\n📸 Manual capture at {current_time}...")
             
             # Same face recognition code as auto-detection
             if boxes is not None:
@@ -885,17 +901,17 @@ try:
                 print("👤 No faces detected")
         
         if key == ord("a"):
-            print("\n📊 Attendance Summary:")
+            print("\\n📊 Attendance Summary:")
             if attendance_log:
                 recent_entries = attendance_log[-10:]
                 for entry in recent_entries:
-                    duration_text = f" - {entry["duration_minutes"]:.1f}min" if entry["duration_minutes"] else ""
-                    print(f"  {entry["timestamp"]} - {entry["name"]} {entry["action"]}{duration_text}")
+                    duration_text = f" - {entry[\"duration_minutes\"]:.1f}min" if entry["duration_minutes"] else ""
+                    print(f"  {entry[\"timestamp\"]} - {entry[\"name\"]} {entry[\"action\"]}{duration_text}")
             else:
                 print("  No attendance entries yet")
         
         if key == ord("s"):
-            print("\n👥 Current Sessions (People Inside):")
+            print("\\n👥 Current Sessions (People Inside):")
             if current_sessions:
                 for name, session in current_sessions.items():
                     elapsed = datetime.now() - session["start_time"]
@@ -917,13 +933,13 @@ finally:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"smart_attendance_{timestamp}.csv"
         df.to_csv(filename, index=False)
-        print(f"\n💾 Smart auto-detection attendance log saved to {filename}")
+        print(f"\\n💾 Smart auto-detection attendance log saved to {filename}")
         
         # Write to Firestore when stopping
         write_to_firestore(attendance_log)
         
         # Show summary statistics
-        print("\n📈 Session Summary:")
+        print("\\n📈 Session Summary:")
         print(f"Total entries: {len(attendance_log)}")
         
         # Calculate total time spent per person
@@ -936,12 +952,30 @@ finally:
                 person_totals[name] += entry["duration_minutes"]
         
         if person_totals:
-            print("\nTotal time spent:")
+            print("\\nTotal time spent:")
             for name, total_minutes in person_totals.items():
                 hours = int(total_minutes // 60)
                 minutes = int(total_minutes % 60)
                 duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
                 print(f"  {name}: {duration_str}")
     
-    print("\n🤖 Smart auto-detection attendance session ended")
+    print("\\n🤖 Smart auto-detection attendance session ended")
+'
 
+# Write and run the recognition script
+writeLines(python_recognition_script, "face_recognition.py")
+cat("📄 Created smart auto-detection face_recognition.py\n")
+
+cat("🚀 Starting smart auto-detection...\n")
+
+
+# Add required packages (no extra dependencies needed)
+system2(file.path("venv", "Scripts", "pip.exe"),
+        args = c("install", "pandas", "firebase-admin"),
+        stdout = FALSE, stderr = FALSE)
+
+# Run the recognition script
+system2(file.path("venv", "Scripts", "python.exe"),
+        args = "face_recognition.py")
+
+cat("\n✅ Smart auto-detection completed!\n")
