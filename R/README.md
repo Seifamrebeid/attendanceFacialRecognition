@@ -48,11 +48,138 @@ Rscript main.R
 
 ---
 
+## 🌐 React Integration (REST API)
+
+For React websites, use the **API Server** instead of the desktop app.
+
+### Start the API Server
+```bash
+# Install R package
+install.packages("plumber")
+
+# Run API server
+Rscript api_server.R
+```
+
+The API will start on `http://localhost:8000`
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/ready` | System readiness |
+| GET | `/api/courses` | List all courses |
+| GET | `/api/courses/<id>` | Get course by ID |
+| POST | `/api/auth/login` | Validate credentials |
+| GET | `/api/attendance` | Get attendance records |
+| POST | `/api/attendance` | Record attendance |
+| POST | `/api/recognition/start` | Start recognition session |
+| POST | `/api/recognition/frame` | Process webcam frame |
+| GET | `/api/recognition/known-faces` | List enrolled students |
+| GET | `/api/reports/weekly` | Weekly attendance report |
+| GET | `/api/reports/semester` | Semester attendance summary |
+
+### React Usage Example
+
+```javascript
+// 1. Login
+const login = async (courseId, username, password) => {
+  const response = await fetch('http://localhost:8000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courseId, username, password })
+  });
+  return response.json();
+};
+
+// 2. Get courses
+const getCourses = async () => {
+  const response = await fetch('http://localhost:8000/api/courses');
+  return response.json();
+};
+
+// 3. Process webcam frame for face recognition
+const recognizeFace = async (base64Image) => {
+  const response = await fetch('http://localhost:8000/api/recognition/frame', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64Image })
+  });
+  return response.json();
+  // Returns: { faces: [{ name: "John", similarity: 0.87, recognized: true }] }
+};
+
+// 4. Record attendance
+const recordAttendance = async (data) => {
+  const response = await fetch('http://localhost:8000/api/attendance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studentName: data.name,
+      courseId: data.courseId,
+      courseCode: data.courseCode,
+      courseName: data.courseName,
+      weekNumber: data.weekNumber,
+      action: 'JOIN',
+      similarity: data.similarity
+    })
+  });
+  return response.json();
+};
+
+// 5. Get weekly report
+const getWeeklyReport = async (courseCode, weekNumber) => {
+  const response = await fetch(
+    `http://localhost:8000/api/reports/weekly?courseCode=${courseCode}&weekNumber=${weekNumber}`
+  );
+  return response.json();
+};
+```
+
+### React Webcam Integration
+
+```javascript
+import Webcam from 'react-webcam';
+
+function AttendanceScanner() {
+  const webcamRef = useRef(null);
+  
+  const captureAndRecognize = async () => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    const result = await recognizeFace(imageSrc);
+    
+    if (result.data.faces.length > 0) {
+      const face = result.data.faces[0];
+      if (face.recognized) {
+        console.log(`Recognized: ${face.name} (${face.similarity})`);
+        // Record attendance
+        await recordAttendance({
+          name: face.name,
+          similarity: face.similarity,
+          // ... course info
+        });
+      }
+    }
+  };
+  
+  return (
+    <div>
+      <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
+      <button onClick={captureAndRecognize}>Scan Face</button>
+    </div>
+  );
+}
+```
+
+---
+
 ## File Structure - What Each File Does
 
 ```
 R/
-├── main.R                        # ENTRY POINT - Run this to start the app
+├── main.R                        # ENTRY POINT - Desktop app
+├── api_server.R                  # REST API for React integration
 ├── utils.R                       # Helper functions
 │
 ├── setup/                        # Setup and configuration files
@@ -144,19 +271,24 @@ Check your Firestore "courses" collection exists and has data.
 ### "Login failed"
 Ensure you enter the correct lecturerUsername and lecturerPassword for the selected course.
 
+### "API server not starting"
+Install plumber: `install.packages("plumber")`
+
+### "CORS error in React"
+The API server includes CORS headers. Make sure you're running the latest `api_server.R`.
+
 ---
 
 ## Summary
 
-**To start from zero:**
+**Desktop App (main.R):**
 1. `conda create -n faceenv python=3.9` + install packages
 2. Add images to `dataset/`
 3. `Rscript setup/quick_setup.R` (once)
 4. `Rscript main.R` (to run)
 
-**New Flow:**
-1. Select course from dropdown
-2. Select week (1-16)
-3. Enter lecturer credentials
-4. Click "Start Attendance"
-5. Attendance records saved in real-time to Firestore
+**React Integration (api_server.R):**
+1. Same setup as above
+2. `install.packages("plumber")` in R
+3. `Rscript api_server.R` (starts API on port 8000)
+4. Connect React to `http://localhost:8000/api/*`
