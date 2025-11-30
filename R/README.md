@@ -463,3 +463,82 @@ Output:
 - ✅ **Reliable attendance logging**
 - ✅ **High accuracy face recognition**
 - ✅ **Real-time performance**
+
+---
+
+## Modular R Code Structure
+
+The system has been refactored into a modular structure for easier maintenance and extension.
+
+### New Modular File Structure
+
+```
+R/
+├── main.R                          # Main entry point - sources other modules
+├── config.R                        # Configuration and constants
+├── environment_setup.R             # Conda/Python environment setup
+├── python_generator_firebase.R     # Generate Firebase Python code
+├── python_generator_detection.R    # Generate face detection Python code
+├── python_generator_ui.R           # Generate UI rendering Python code
+├── python_generator_main.R         # Generate main Python loop code
+├── utils.R                         # Helper functions for R
+├── quick_setup.R                   # Creates face encodings from dataset
+├── working_recognition.R           # Legacy: Main face recognition system
+├── working_recognition_smart.R     # Legacy: Smart auto-detection version
+└── working_recognition_wave.R      # Legacy: Wave gesture version
+```
+
+### Running the Modular System
+
+From the repository root directory:
+
+```r
+source("R/main.R")
+```
+
+Or using Rscript:
+
+```powershell
+Rscript R/main.R
+```
+
+### Module Descriptions
+
+| Module | Description |
+|--------|-------------|
+| `config.R` | All configurable parameters (camera resolution, thresholds, timing) |
+| `utils.R` | Helper functions for file operations and console output |
+| `environment_setup.R` | Setup and verification of Python environment |
+| `python_generator_firebase.R` | Generates Firebase/Firestore integration code |
+| `python_generator_detection.R` | Generates face detection and matching code |
+| `python_generator_ui.R` | Generates UI rendering code |
+| `python_generator_main.R` | Generates main application loop code |
+| `main.R` | Orchestrates all modules and runs the system |
+
+### Customizing Configuration
+
+Edit `config.R` to modify system parameters:
+
+```r
+# Camera settings
+CAMERA_WIDTH <- 1920           # Higher resolution
+CAMERA_HEIGHT <- 1080
+
+# Detection sensitivity
+STABILITY_DURATION <- 3.0      # Hold longer for capture
+SIMILARITY_THRESHOLD <- 0.50   # Stricter matching
+```
+
+### Adding New Features
+
+1. Create a new generator file: `R/python_generator_newfeature.R`
+2. Define a `generate_newfeature_code()` function
+3. Source in `main.R` and add to `combine_python_modules()` call
+
+### R Best Practices Used
+
+- **snake_case naming** for functions and variables
+- **Roxygen2-style comments** for function documentation
+- **sprintf() formatting** for string interpolation
+- **tryCatch() error handling** for critical operations
+- **Single responsibility** modules with clear purposes
