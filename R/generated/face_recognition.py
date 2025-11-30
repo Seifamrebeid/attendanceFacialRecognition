@@ -7,11 +7,12 @@ from facenet_pytorch import MTCNN, InceptionResnetV1
 from PIL import Image
 from datetime import datetime
 import pandas as pd
+import threading
+import time
+
 
 # Firebase Firestore integration
 from firebase_admin import credentials, firestore, initialize_app
-import threading
-import time
 
 # Initialize Firebase
 try:
@@ -24,14 +25,514 @@ except Exception as e:
     print(f"Firestore initialization failed: {e}")
     firestore_available = False
 
+def read_firestore_attendance():
+    """Read all attendance records from Firestore at startup"""
+    if not firestore_available:
+        return []
+    
+    try:
+        docs = db.collection("attendance").stream()
+        firestore_records = []
+        for doc in docs:
+            data = doc.to_dict()
+            firestore_records.append({
+                "id": doc.id,
+                "name": data.get("name"),
+                "action": data.get("action"),
+                "timestamp": data.get("timestamp"),
+                "similarity": data.get("similarity"),
+                "duration_minutes": data.get("duration_minutes"),
+                "session_id": data.get("session_id")
+            })
+        
+        print(f"Read {len(firestore_records)} records from Firestore:")
+        for record in firestore_records[-3:]:  # Show last 3
+            print(f"  {record['timestamp']} - {record['name']} {record['action']}")
+        
+        return firestore_records
+    except Exception as e:
+        print(f"Error reading from Firestore: {e}")
+        return []
+
+def write_to_firestore(attendance_log):
+    """Write attendance log to Firestore when stopping"""
+    if not firestore_available or not attendance_log:
+        return
+    
+    try:
+        print("\nWriting to Firestore...")
+        batch = db.batch()
+        
+        for entry in attendance_log:
+            doc_data = {
+                "name": entry["name"],
+                "action": entry["action"],
+                "timestamp": entry["timestamp"],
+                "date": entry["date"], 
+                "time": entry["time"],
+                "similarity": float(entry["similarity"]),
+                "duration_minutes": float(entry["duration_minutes"]) if entry["duration_minutes"] else None,
+                "session_id": int(entry["session_id"]) if entry["session_id"] else None,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            doc_ref = db.collection("attendance").document()
+            batch.set(doc_ref, doc_data)
+        
+        batch.commit()
+        print(f"Successfully wrote {len(attendance_log)} records to Firestore")
+        
+    except Exception as e:
+        print(f"Error writing to Firestore: {e}")
+
+
+# Course selection and login functionality
+import tkinter as tk
+from tkinter import ttk, messagebox
+
+# Global variables for selected course and week
+selected_course = None
+selected_week = None
+logged_in_lecturer = None
+
+def fetch_courses_from_firestore():
+    """Fetch all courses from Firestore"""
+    if not firestore_available:
+        print("Firestore not available - using demo courses")
+        return [
+            {"id": "demo1", "courseCode": "DEMO101", "courseName": "Demo Course", 
+             "lecturerName": "Demo Lecturer", "lecturerUsername": "demo", "lecturerPassword": "demo",
+             "department": "Demo", "semester": "Fall 2025", "schedule": "Monday 10:00"}
+        ]
+    
+    try:
+        courses = []
+        docs = db.collection("courses").stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data["id"] = doc.id
+            courses.append(data)
+        print(f"Fetched {len(courses)} courses from Firestore")
+        return courses
+    except Exception as e:
+        print(f"Error fetching courses: {e}")
+        return []
+
+def show_course_selection_window():
+    """Show course selection, login, and week selection window"""
+    global selected_course, selected_week, logged_in_lecturer
+    
+    # Fetch courses
+    courses = fetch_courses_from_firestore()
+    if not courses:
+        messagebox.showerror("Error", "No courses found in database")
+        return False
+    
+    # Create main window
+    root = tk.Tk()
+    root.title("Attendance System - Course Selection")
+    root.geometry("600x500")
+    root.configure(bg="#2c3e50")
+    
+    # Center window
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() - 600) // 2
+    y = (root.winfo_screenheight() - 500) // 2
+    root.geometry(f"600x500+{x}+{y}")
+    
+    result = {"success": False}
+    
+    # Title
+    title_label = tk.Label(root, text="Smart Attendance System", 
+                          font=("Helvetica", 20, "bold"), fg="white", bg="#2c3e50")
+    title_label.pack(pady=20)
+    
+    # Course Selection Frame
+    course_frame = tk.LabelFrame(root, text="Select Course", font=("Helvetica", 12),
+                                 fg="white", bg="#34495e", padx=20, pady=10)
+    course_frame.pack(fill="x", padx=30, pady=10)
+    
+    # Course dropdown
+    course_var = tk.StringVar()
+    course_options = [f"{c['courseCode']} - {c['courseName']} ({c['lecturerName']})" for c in courses]
+    course_dropdown = ttk.Combobox(course_frame, textvariable=course_var, values=course_options, 
+                                   state="readonly", width=50, font=("Helvetica", 10))
+    course_dropdown.pack(pady=10)
+    if course_options:
+        course_dropdown.current(0)
+    
+    # Week Selection Frame
+    week_frame = tk.LabelFrame(root, text="Select Week", font=("Helvetica", 12),
+                               fg="white", bg="#34495e", padx=20, pady=10)
+    week_frame.pack(fill="x", padx=30, pady=10)
+    
+    week_var = tk.StringVar()
+    week_options = [f"Week {i}" for i in range(1, 17)]
+    week_dropdown = ttk.Combobox(week_frame, textvariable=week_var, values=week_options,
+                                 state="readonly", width=50, font=("Helvetica", 10))
+    week_dropdown.pack(pady=10)
+    week_dropdown.current(0)
+    
+    # Login Frame
+    login_frame = tk.LabelFrame(root, text="Lecturer Login", font=("Helvetica", 12),
+                                fg="white", bg="#34495e", padx=20, pady=10)
+    login_frame.pack(fill="x", padx=30, pady=10)
+    
+    # Username
+    tk.Label(login_frame, text="Username:", font=("Helvetica", 10), 
+             fg="white", bg="#34495e").pack(anchor="w")
+    username_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=40)
+    username_entry.pack(pady=5)
+    
+    # Password
+    tk.Label(login_frame, text="Password:", font=("Helvetica", 10),
+             fg="white", bg="#34495e").pack(anchor="w")
+    password_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=40, show="*")
+    password_entry.pack(pady=5)
+    
+    def on_login():
+        global selected_course, selected_week, logged_in_lecturer
+        
+        # Get selected course index
+        course_idx = course_dropdown.current()
+        if course_idx < 0:
+            messagebox.showerror("Error", "Please select a course")
+            return
+        
+        course = courses[course_idx]
+        username = username_entry.get().strip()
+        password = password_entry.get().strip()
+        
+        # Validate credentials
+        if username != course.get("lecturerUsername") or password != course.get("lecturerPassword"):
+            messagebox.showerror("Login Failed", "Invalid username or password for this course")
+            return
+        
+        # Get week number
+        week_idx = week_dropdown.current()
+        week_num = week_idx + 1
+        
+        # Success
+        selected_course = course
+        selected_week = week_num
+        logged_in_lecturer = course.get("lecturerName")
+        result["success"] = True
+        
+        print(f"\nLogged in successfully!")
+        print(f"Course: {course['courseCode']} - {course['courseName']}")
+        print(f"Week: {week_num}")
+        print(f"Lecturer: {logged_in_lecturer}")
+        
+        root.destroy()
+    
+    def on_cancel():
+        root.destroy()
+    
+    # Buttons
+    button_frame = tk.Frame(root, bg="#2c3e50")
+    button_frame.pack(pady=20)
+    
+    login_btn = tk.Button(button_frame, text="Start Attendance", font=("Helvetica", 12, "bold"),
+                         bg="#27ae60", fg="white", width=15, command=on_login)
+    login_btn.pack(side="left", padx=10)
+    
+    cancel_btn = tk.Button(button_frame, text="Cancel", font=("Helvetica", 12),
+                          bg="#e74c3c", fg="white", width=15, command=on_cancel)
+    cancel_btn.pack(side="left", padx=10)
+    
+    # Run the window
+    root.mainloop()
+    
+    return result["success"]
+
+def write_attendance_record_realtime(student_name, similarity, action):
+    """Write a single attendance record to Firestore immediately (real-time)"""
+    global selected_course, selected_week, logged_in_lecturer
+    
+    if not firestore_available or not selected_course:
+        print(f"Cannot write attendance - Firestore: {firestore_available}, Course: {selected_course is not None}")
+        return False
+    
+    try:
+        timestamp = datetime.now()
+        doc_data = {
+            # Student info
+            "studentName": student_name,
+            "similarity": float(similarity),
+            "action": action,
+            
+            # Timestamp info
+            "timestamp": timestamp.isoformat(),
+            "date": timestamp.strftime("%Y-%m-%d"),
+            "time": timestamp.strftime("%H:%M:%S"),
+            "dayOfWeek": timestamp.strftime("%A"),
+            
+            # Course info
+            "courseId": selected_course.get("id"),
+            "courseCode": selected_course.get("courseCode"),
+            "courseName": selected_course.get("courseName"),
+            "department": selected_course.get("department"),
+            "semester": selected_course.get("semester"),
+            
+            # Session info
+            "weekNumber": selected_week,
+            "lecturerName": logged_in_lecturer,
+            
+            # Metadata
+            "createdAt": timestamp.isoformat()
+        }
+        
+        # Write immediately to Firestore
+        db.collection("attendance").add(doc_data)
+        print(f"[SAVED] {student_name} - {action} - Week {selected_week} - {selected_course.get('courseCode')}")
+        return True
+        
+    except Exception as e:
+        print(f"Error writing attendance record: {e}")
+        return False
+
+def get_session_info_text():
+    """Get formatted session info for display"""
+    if selected_course and selected_week:
+        return f"{selected_course.get('courseCode')} | Week {selected_week} | {logged_in_lecturer}"
+    return "No course selected"
+
+
+# Smart auto-detection using face positioning and stability
+def detect_face_in_optimal_zone(boxes, frame_shape, stability_threshold=0.02):
+    """Detect if face is in optimal position for auto-capture"""
+    if boxes is None:
+        return False, None
+    
+    height, width = frame_shape[:2]
+    center_x, center_y = width // 2, height // 2
+    
+    # Define optimal capture zone (center 40% of frame)
+    zone_width = int(width * 0.4)
+    zone_height = int(height * 0.4)
+    
+    zone_left = center_x - zone_width // 2
+    zone_right = center_x + zone_width // 2
+    zone_top = center_y - zone_height // 2
+    zone_bottom = center_y + zone_height // 2
+    
+    for box in boxes:
+        x1, y1, x2, y2 = [int(b) for b in box]
+        face_center_x = (x1 + x2) // 2
+        face_center_y = (y1 + y2) // 2
+        face_width = x2 - x1
+        face_height = y2 - y1
+        face_area = face_width * face_height
+        
+        # Check if face is in optimal zone
+        in_zone = (zone_left <= face_center_x <= zone_right and 
+                  zone_top <= face_center_y <= zone_bottom)
+        
+        # Check face size (should be substantial but not too close)
+        optimal_size = 8000 <= face_area <= 50000
+        
+        if in_zone and optimal_size:
+            return True, (x1, y1, x2, y2, face_center_x, face_center_y)
+    
+    return False, None
+
+def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
+    """Draw smart positioning guidance with high-quality text"""
+    height, width = frame.shape[:2]
+    center_x, center_y = width // 2, height // 2
+    
+    # Helper function for high-quality text on camera feed
+    def draw_text_camera(img, text, pos, font_scale, color, thickness=2):
+        cv2.putText(img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
+    
+    # Draw optimal zone
+    zone_width = int(width * 0.4)
+    zone_height = int(height * 0.4)
+    
+    zone_left = center_x - zone_width // 2
+    zone_right = center_x + zone_width // 2
+    zone_top = center_y - zone_height // 2
+    zone_bottom = center_y + zone_height // 2
+    
+    # Draw zone rectangle
+    cv2.rectangle(frame, (zone_left, zone_top), (zone_right, zone_bottom), (0, 255, 255), 2)
+    draw_text_camera(frame, "OPTIMAL ZONE", (zone_left, zone_top - 10), 0.8, (0, 255, 255), 2)
+    
+    # Draw center crosshair
+    cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), (0, 255, 255), 2)
+    cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), (0, 255, 255), 2)
+    
+    if boxes is not None:
+        for box in boxes:
+            x1, y1, x2, y2 = [int(b) for b in box]
+            face_center_x = (x1 + x2) // 2
+            face_center_y = (y1 + y2) // 2
+            
+            if optimal_face and optimal_face[0] == x1:  # This is the optimal face
+                # Green for optimal position
+                color = (0, 255, 0)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
+            else:
+                # Guide to optimal position
+                color = (255, 255, 0)  # Yellow for guidance
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                
+                # Direction arrows with better text
+                if face_center_x < zone_left:
+                    draw_text_camera(frame, "MOVE RIGHT ->", (x1, y2 + 25), 0.7, color, 2)
+                elif face_center_x > zone_right:
+                    draw_text_camera(frame, "<- MOVE LEFT", (x1, y2 + 25), 0.7, color, 2)
+                
+                if face_center_y < zone_top:
+                    draw_text_camera(frame, "MOVE DOWN", (x1, y1 - 35), 0.7, color, 2)
+                elif face_center_y > zone_bottom:
+                    draw_text_camera(frame, "MOVE UP", (x1, y1 - 35), 0.7, color, 2)
+                
+                # Size guidance with better text
+                face_area = (x2 - x1) * (y2 - y1)
+                if face_area < 8000:
+                    draw_text_camera(frame, "COME CLOSER", (x1, y2 + 50), 0.7, color, 2)
+                elif face_area > 50000:
+                    draw_text_camera(frame, "STEP BACK", (x1, y2 + 50), 0.7, color, 2)
+    
+    # Enhanced quality indicator with better styling
+    if quality_score > 0:
+        # Position on top right for better visibility
+        bar_x = width - 320
+        bar_y = 30
+        bar_length = int(250 * quality_score)
+        
+        # Background rectangle with rounded effect
+        cv2.rectangle(frame, (bar_x - 10, bar_y - 10), (bar_x + 270, bar_y + 35), (0, 0, 0), -1)
+        cv2.rectangle(frame, (bar_x - 8, bar_y - 8), (bar_x + 268, bar_y + 33), (50, 50, 50), 2)
+        
+        # Quality bar background
+        cv2.rectangle(frame, (bar_x, bar_y + 15), (bar_x + 250, bar_y + 25), (100, 100, 100), -1)
+        
+        # Color gradient based on quality
+        if quality_score >= 0.8:
+            bar_color = (0, 255, 0)  # Bright Green
+            status_text = "EXCELLENT"
+        elif quality_score >= 0.6:
+            bar_color = (0, 255, 255)  # Yellow
+            status_text = "GOOD"
+        elif quality_score >= 0.4:
+            bar_color = (0, 165, 255)  # Orange
+            status_text = "OK"
+        else:
+            bar_color = (0, 100, 255)  # Red
+            status_text = "POOR"
+        
+        # Quality bar fill
+        cv2.rectangle(frame, (bar_x, bar_y + 15), (bar_x + bar_length, bar_y + 25), bar_color, -1)
+        
+        # Enhanced text with percentage and status
+        cv2.putText(frame, f"Quality: {quality_score:.0%} - {status_text}", (bar_x, bar_y + 10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA)
+
+def cosine_similarity(a, b):
+    """Calculate cosine similarity between two vectors"""
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def find_best_match(face_encoding, threshold=0.45):
+    """Find the best matching face from known encodings"""
+    similarities = [cosine_similarity(face_encoding, known_enc) for known_enc in known_encodings]
+    best_idx = np.argmax(similarities)
+    best_similarity = similarities[best_idx]
+    
+    if best_similarity >= threshold:
+        return known_names[best_idx], best_similarity
+    else:
+        return "Unknown", best_similarity
+
+def is_same_face(pos1, pos2, threshold=50):
+    """Check if two face positions represent the same face"""
+    if pos1 is None or pos2 is None:
+        return False
+    center1_x, center1_y = (pos1[0] + pos1[2]) // 2, (pos1[1] + pos1[3]) // 2
+    center2_x, center2_y = (pos2[0] + pos2[2]) // 2, (pos2[1] + pos2[3]) // 2
+    distance = ((center1_x - center2_x)**2 + (center1_y - center2_y)**2)**0.5
+    return distance < threshold
+
+def get_current_action(person_name):
+    """Determine if this should be JOIN, LEFT, or potential RETURNED"""
+    if person_name in current_sessions:
+        return "LEFT"
+    else:
+        # Check if they left recently (within 10 minutes) - could be RETURNED
+        current_time = datetime.now()
+        if (person_name in recent_departures and 
+            (current_time - recent_departures[person_name]).total_seconds() < 600):  # 10 minutes
+            return "RETURNED"
+        else:
+            return "JOIN"
+
+def calculate_duration(start_time, end_time):
+    """Calculate duration in minutes between two timestamps"""
+    duration = end_time - start_time
+    return duration.total_seconds() / 60
+
+def log_attendance(name, similarity, action):
+    """Log attendance with enhanced tracking and REAL-TIME Firestore write"""
+    global session_counter
+    
+    timestamp = datetime.now()
+    duration_minutes = None
+    session_id = None
+    
+    if action == "JOIN":
+        current_sessions[name] = {
+            "start_time": timestamp,
+            "session_id": session_counter
+        }
+        session_id = session_counter
+        session_counter += 1
+        
+        # Remove from recent departures if they were there
+        if name in recent_departures:
+            del recent_departures[name]
+            
+        print("[JOIN] {} JOINED at {}".format(name, timestamp.strftime("%H:%M:%S")))
+        
+    elif action == "LEFT" and name in current_sessions:
+        start_time = current_sessions[name]["start_time"]
+        session_id = current_sessions[name]["session_id"]
+        duration_minutes = calculate_duration(start_time, timestamp)
+        
+        # Track this person departure time for RETURNED detection
+        recent_departures[name] = timestamp
+        
+        del current_sessions[name]
+        
+        hours = int(duration_minutes // 60)
+        minutes = int(duration_minutes % 60)
+        duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+        print("[LEFT] {} LEFT at {} (Duration: {})".format(name, timestamp.strftime("%H:%M:%S"), duration_str))
+    
+    # Add to local attendance log
+    attendance_log.append({
+        "name": name,
+        "action": action,
+        "timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+        "date": timestamp.strftime("%Y-%m-%d"),
+        "time": timestamp.strftime("%H:%M:%S"),
+        "similarity": round(similarity, 2),
+        "duration_minutes": round(duration_minutes, 1) if duration_minutes else None,
+        "session_id": session_id
+    })
+    
+    # REAL-TIME: Write to Firestore immediately
+    write_attendance_record_realtime(name, similarity, action)
+
+
 def create_unified_fullscreen_interface(frame, attendance_log, current_sessions, quality_score, boxes, optimal_face, stable_detection_start, stability_duration):
-    # """Create a unified full-screen interface with camera and dashboard"""
+    """Create a unified full-screen interface with camera and dashboard"""
     # Create full HD canvas (1920x1080)
     canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
     
     # Helper function for high-quality text rendering
     def draw_text_hq(img, text, pos, font_scale, color, thickness=2, font=cv2.FONT_HERSHEY_SIMPLEX):
-        # """Draw high-quality text with anti-aliasing"""
+        """Draw high-quality text with anti-aliasing"""
         cv2.putText(img, text, pos, font, font_scale, color, thickness, cv2.LINE_AA)
     
     # === LEFT SIDE: CAMERA FEED ===
@@ -54,14 +555,18 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     draw_text_hq(canvas, "ATTENDANCE CONTROL CENTER", (panel_x, 50), 1.1, (0, 255, 255), 3)
     cv2.line(canvas, (panel_x, 60), (panel_x + 580, 60), (0, 255, 255), 2)
     
+    # Course and Week Info - NEW
+    session_info = get_session_info_text()
+    draw_text_hq(canvas, session_info, (panel_x, 85), 0.8, (255, 255, 0), 2)
+    
     # Current time and status
     current_time = datetime.now().strftime("%H:%M:%S")
     current_date = datetime.now().strftime("%A, %B %d, %Y")
-    draw_text_hq(canvas, current_date, (panel_x, 90), 0.7, (255, 255, 255), 2)
-    draw_text_hq(canvas, f"Time: {current_time}", (panel_x, 115), 0.9, (0, 255, 0), 2)
+    draw_text_hq(canvas, current_date, (panel_x, 110), 0.7, (255, 255, 255), 2)
+    draw_text_hq(canvas, f"Time: {current_time}", (panel_x, 135), 0.9, (0, 255, 0), 2)
     
     # System status indicators
-    status_y = 150
+    status_y = 165
     draw_text_hq(canvas, "SYSTEM STATUS:", (panel_x, status_y), 0.8, (255, 165, 0), 2)
     
     # AI Status
@@ -120,7 +625,6 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
         for entry in recent_entries:
             if activity_list_y > activity_y + 170:
                 break
-                
 
             # Entry details
             time_str = entry["time"]
@@ -181,7 +685,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     return canvas
 
 def create_dashboard_window(attendance_log, current_sessions):
-    # """Create a separate dashboard window for dual-screen mode"""
+    """Create a separate dashboard window for dual-screen mode"""
     dashboard = np.ones((600, 800, 3), dtype=np.uint8) * 50  # Dark gray background
     
     # Title
@@ -224,7 +728,6 @@ def create_dashboard_window(attendance_log, current_sessions):
     if attendance_log:
         recent_entries = attendance_log[-8:]
         for entry in recent_entries:
-        
             time_str = entry["time"]
             name_str = entry["name"]
             action_str = entry["action"]
@@ -251,202 +754,16 @@ def create_dashboard_window(attendance_log, current_sessions):
     
     return dashboard
 
-# Smart auto-detection using face positioning and stability
-def detect_face_in_optimal_zone(boxes, frame_shape, stability_threshold=0.02):
-    # """Detect if face is in optimal position for auto-capture"""
-    if boxes is None:
-        return False, None
-    
-    height, width = frame_shape[:2]
-    center_x, center_y = width // 2, height // 2
-    
-    # Define optimal capture zone (center 40% of frame)
-    zone_width = int(width * 0.4)
-    zone_height = int(height * 0.4)
-    
-    zone_left = center_x - zone_width // 2
-    zone_right = center_x + zone_width // 2
-    zone_top = center_y - zone_height // 2
-    zone_bottom = center_y + zone_height // 2
-    
-    for box in boxes:
-        x1, y1, x2, y2 = [int(b) for b in box]
-        face_center_x = (x1 + x2) // 2
-        face_center_y = (y1 + y2) // 2
-        face_width = x2 - x1
-        face_height = y2 - y1
-        face_area = face_width * face_height
-        
-        # Check if face is in optimal zone
-        in_zone = (zone_left <= face_center_x <= zone_right and 
-                  zone_top <= face_center_y <= zone_bottom)
-        
-        # Check face size (should be substantial but not too close)
-        optimal_size = 8000 <= face_area <= 50000
-        
-        if in_zone and optimal_size:
-            return True, (x1, y1, x2, y2, face_center_x, face_center_y)
-    
-    return False, None
-
-def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
-    # """Draw smart positioning guidance with high-quality text"""
-    height, width = frame.shape[:2]
-    center_x, center_y = width // 2, height // 2
-    
-    # Helper function for high-quality text on camera feed
-    def draw_text_camera(img, text, pos, font_scale, color, thickness=2):
-        cv2.putText(img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
-    
-    # Draw optimal zone
-    zone_width = int(width * 0.4)
-    zone_height = int(height * 0.4)
-    
-    zone_left = center_x - zone_width // 2
-    zone_right = center_x + zone_width // 2
-    zone_top = center_y - zone_height // 2
-    zone_bottom = center_y + zone_height // 2
-    
-    # Draw zone rectangle
-    cv2.rectangle(frame, (zone_left, zone_top), (zone_right, zone_bottom), (0, 255, 255), 2)
-    draw_text_camera(frame, "OPTIMAL ZONE", (zone_left, zone_top - 10), 0.8, (0, 255, 255), 2)
-    
-    # Draw center crosshair
-    cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), (0, 255, 255), 2)
-    cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), (0, 255, 255), 2)
-    
-    if boxes is not None:
-        for box in boxes:
-            x1, y1, x2, y2 = [int(b) for b in box]
-            face_center_x = (x1 + x2) // 2
-            face_center_y = (y1 + y2) // 2
-            
-            if optimal_face and optimal_face[0] == x1:  # This is the optimal face
-                # Green for optimal position
-                color = (0, 255, 0)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
-            else:
-                # Guide to optimal position
-                color = (255, 255, 0)  # Yellow for guidance
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                
-                # Direction arrows with better text
-                if face_center_x < zone_left:
-                    draw_text_camera(frame, "MOVE RIGHT →", (x1, y2 + 25), 0.7, color, 2)
-                elif face_center_x > zone_right:
-                    draw_text_camera(frame, "← MOVE LEFT", (x1, y2 + 25), 0.7, color, 2)
-                
-                if face_center_y < zone_top:
-                    draw_text_camera(frame, "MOVE DOWN ↓", (x1, y1 - 35), 0.7, color, 2)
-                elif face_center_y > zone_bottom:
-                    draw_text_camera(frame, "↑ MOVE UP", (x1, y1 - 35), 0.7, color, 2)
-                
-                # Size guidance with better text
-                face_area = (x2 - x1) * (y2 - y1)
-                if face_area < 8000:
-                    draw_text_camera(frame, "COME CLOSER", (x1, y2 + 50), 0.7, color, 2)
-                elif face_area > 50000:
-                    draw_text_camera(frame, "STEP BACK", (x1, y2 + 50), 0.7, color, 2)
-    
-    # Enhanced quality indicator with better styling
-    if quality_score > 0:
-        # Position on top right for better visibility
-        bar_x = width - 320
-        bar_y = 30
-        bar_length = int(250 * quality_score)
-        
-        # Background rectangle with rounded effect
-        cv2.rectangle(frame, (bar_x - 10, bar_y - 10), (bar_x + 270, bar_y + 35), (0, 0, 0), -1)
-        cv2.rectangle(frame, (bar_x - 8, bar_y - 8), (bar_x + 268, bar_y + 33), (50, 50, 50), 2)
-        
-        # Quality bar background
-        cv2.rectangle(frame, (bar_x, bar_y + 15), (bar_x + 250, bar_y + 25), (100, 100, 100), -1)
-        
-        # Color gradient based on quality
-        if quality_score >= 0.8:
-            bar_color = (0, 255, 0)  # Bright Green
-            status_text = "EXCELLENT"
-        elif quality_score >= 0.6:
-            bar_color = (0, 255, 255)  # Yellow
-            status_text = "GOOD"
-        elif quality_score >= 0.4:
-            bar_color = (0, 165, 255)  # Orange
-            status_text = "OK"
-        else:
-            bar_color = (0, 100, 255)  # Red
-            status_text = "POOR"
-        
-        # Quality bar fill
-        cv2.rectangle(frame, (bar_x, bar_y + 15), (bar_x + bar_length, bar_y + 25), bar_color, -1)
-        
-        # Enhanced text with percentage and status
-        cv2.putText(frame, f"Quality: {quality_score:.0%} - {status_text}", (bar_x, bar_y + 10), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA)
-
-def read_firestore_attendance():
-    # """Read all attendance records from Firestore at startup"""
-    if not firestore_available:
-        return []
-    
-    try:
-        docs = db.collection("attendance").stream()
-        firestore_records = []
-        for doc in docs:
-            data = doc.to_dict()
-            firestore_records.append({
-                "id": doc.id,
-                "name": data.get("name"),
-                "action": data.get("action"),
-                "timestamp": data.get("timestamp"),
-                "similarity": data.get("similarity"),
-                "duration_minutes": data.get("duration_minutes"),
-                "session_id": data.get("session_id")
-            })
-        
-        print(f"Read {len(firestore_records)} records from Firestore:")
-        for record in firestore_records[-3:]:  # Show last 3
-            print(f"  {record['timestamp']} - {record['name']} {record['action']}")
-        
-        return firestore_records
-    except Exception as e:
-        print(f"Error reading from Firestore: {e}")
-        return []
-
-def write_to_firestore(attendance_log):
-    # """Write attendance log to Firestore when stopping"""
-    if not firestore_available or not attendance_log:
-        return
-    
-    try:
-        print("\n💾 Writing to Firestore...")
-        batch = db.batch()
-        
-        for entry in attendance_log:
-            doc_data = {
-                "name": entry["name"],
-                "action": entry["action"],
-                "timestamp": entry["timestamp"],
-                "date": entry["date"], 
-                "time": entry["time"],
-                "similarity": float(entry["similarity"]),
-                "duration_minutes": float(entry["duration_minutes"]) if entry["duration_minutes"] else None,
-                "session_id": int(entry["session_id"]) if entry["session_id"] else None,
-                "created_at": datetime.now().isoformat()
-            }
-            
-            doc_ref = db.collection("attendance").document()
-            batch.set(doc_ref, doc_data)
-        
-        batch.commit()
-        print(f"Successfully wrote {len(attendance_log)} records to Firestore")
-        
-    except Exception as e:
-        print(f"Error writing to Firestore: {e}")
 
 print("Loading smart auto-detection system...")
 
-# Read existing attendance from Firestore
-existing_records = read_firestore_attendance()
+# Show course selection window FIRST
+if not show_course_selection_window():
+    print("No course selected. Exiting...")
+    exit(0)
+
+print(f"\nStarting attendance for: {selected_course.get('courseCode')} - {selected_course.get('courseName')}")
+print(f"Week {selected_week} | Lecturer: {logged_in_lecturer}")
 
 # Load face encodings
 with open("face_encodings.pkl", "rb") as f:
@@ -472,19 +789,6 @@ resnet = InceptionResnetV1(pretrained="vggface2").eval().to(device)
 # Enable optimizations
 if device == "cuda":
     torch.backends.cudnn.benchmark = True
-
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def find_best_match(face_encoding, threshold=0.45):
-    similarities = [cosine_similarity(face_encoding, known_enc) for known_enc in known_encodings]
-    best_idx = np.argmax(similarities)
-    best_similarity = similarities[best_idx]
-    
-    if best_similarity >= threshold:
-        return known_names[best_idx], best_similarity
-    else:
-        return "Unknown", best_similarity
 
 # Enhanced attendance tracking with entry/exit
 attendance_log = []
@@ -521,85 +825,6 @@ face_change_threshold = 50  # Pixel distance to consider same face
 last_face_positions = []  # Store previous frame face positions
 current_face_names = {}  # Current frame face names (position -> name)
 
-def get_current_action(person_name):
-    # """Determine if this should be JOIN, LEFT, or potential RETURNED"""
-    if person_name in current_sessions:
-        return "LEFT"
-    else:
-        # Check if they left recently (within 10 minutes) - could be RETURNED
-        current_time = datetime.now()
-        if (person_name in recent_departures and 
-            (current_time - recent_departures[person_name]).total_seconds() < 600):  # 10 minutes
-            return "RETURNED"
-        else:
-            return "JOIN"
-
-def calculate_duration(start_time, end_time):
-    duration = end_time - start_time
-    return duration.total_seconds() / 60
-
-def is_same_face(pos1, pos2, threshold=50):
-    if pos1 is None or pos2 is None:
-        return False
-    center1_x, center1_y = (pos1[0] + pos1[2]) // 2, (pos1[1] + pos1[3]) // 2
-    center2_x, center2_y = (pos2[0] + pos2[2]) // 2, (pos2[1] + pos2[3]) // 2
-    distance = ((center1_x - center2_x)**2 + (center1_y - center2_y)**2)**0.5
-    return distance < threshold
-
-def log_attendance(name, similarity, action):
-    global session_counter
-    
-    timestamp = datetime.now()
-    duration_minutes = None
-    session_id = None
-    
-def log_attendance(name, similarity, action):
-    global session_counter
-    
-    timestamp = datetime.now()
-    duration_minutes = None
-    session_id = None
-    
-    if action == "JOIN":
-        current_sessions[name] = {
-            "start_time": timestamp,
-            "session_id": session_counter
-        }
-        session_id = session_counter
-        session_counter += 1
-        
-        # Remove from recent departures if they were there
-        if name in recent_departures:
-            del recent_departures[name]
-            
-        print("[JOIN] {} JOINED at {}".format(name, timestamp.strftime("%H:%M:%S")))
-        
-    elif action == "LEFT" and name in current_sessions:
-        start_time = current_sessions[name]["start_time"]
-        session_id = current_sessions[name]["session_id"]
-        duration_minutes = calculate_duration(start_time, timestamp)
-        
-        # Track this person departure time for RETURNED detection
-        recent_departures[name] = timestamp
-        
-        del current_sessions[name]
-        
-        hours = int(duration_minutes // 60)
-        minutes = int(duration_minutes % 60)
-        duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
-        print("[LEFT] {} LEFT at {} (Duration: {})".format(name, timestamp.strftime("%H:%M:%S"), duration_str))
-    
-    attendance_log.append({
-        "name": name,
-        "action": action,
-        "timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-        "date": timestamp.strftime("%Y-%m-%d"),
-        "time": timestamp.strftime("%H:%M:%S"),
-        "similarity": round(similarity, 2),
-        "duration_minutes": round(duration_minutes, 1) if duration_minutes else None,
-        "session_id": session_id
-    })
-
 # Initialize camera
 print("\nInitializing camera...")
 cap = cv2.VideoCapture(0)
@@ -613,7 +838,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-print("\n Smart Auto-Detection Attendance System Started!")
+print("\nSmart Auto-Detection Attendance System Started!")
 print("AI-Powered Face Recognition")
 print("Full-Screen Professional Interface")
 print("Real-time Continuous Face Recognition")
@@ -630,6 +855,9 @@ print("- Press SPACE for manual capture (backup)")
 # Display mode control
 fullscreen_mode = True
 show_dashboard = True
+
+# Auto capture message timer
+auto_capture_message_timer = None
 
 try:
     while True:
@@ -728,45 +956,6 @@ try:
                     
                     # Update last_face_positions for next frame comparison
                     last_face_positions = boxes.copy() if boxes is not None else []
-                    x1, y1, x2, y2 = [int(b) for b in box]
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
-                    
-                    if x2 <= x1 or y2 <= y1:
-                        continue
-                    
-                    try:
-                        # Extract face for recognition
-                        face_img = rgb_frame[y1:y2, x1:x2]
-                        face_pil = Image.fromarray(face_img)
-                        
-                        face_tensor = mtcnn(face_pil)
-                        if face_tensor is None:
-                            continue
-                        
-                        if len(face_tensor.shape) == 3:
-                            face_tensor = face_tensor.unsqueeze(0)
-                        
-                        face_tensor = face_tensor.to(device)
-                        
-                        with torch.no_grad():
-                            emb = resnet(face_tensor)
-                        
-                        emb_array = emb.squeeze(0).cpu().numpy()
-                        emb_norm = emb_array / (np.linalg.norm(emb_array) + 1e-10)
-                        
-                        name, similarity = find_best_match(emb_norm)
-                        
-                        if similarity >= 0.35:  # Lower threshold for continuous recognition
-                            current_faces.append({
-                                "name": name,
-                                "similarity": similarity,
-                                "box": (x1, y1, x2, y2),
-                                "face_id": i
-                            })
-                    
-                    except Exception as e:
-                        continue
                         
         else:
             # Use previous detection results to maintain continuity
@@ -808,46 +997,6 @@ try:
                     # Name text - larger and cleaner
                     cv2.putText(frame, name_text, (x1+5, y1-15), 
                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2, cv2.LINE_AA)
-            for face_info in current_faces:
-                x1, y1, x2, y2 = face_info["box"]
-                name = face_info["name"]
-                similarity = face_info["similarity"]
-                
-                # Choose color based on recognition confidence
-                if name != "Unknown" and similarity >= 0.5:
-                    color = (0, 255, 0)  # Green for good recognition
-                    confidence_text = "CONFIDENT"
-                elif name != "Unknown" and similarity >= 0.35:
-                    color = (0, 255, 255)  # Yellow for medium recognition
-                    confidence_text = "POSSIBLE"
-                else:
-                    color = (0, 165, 255)  # Orange for unknown
-                    confidence_text = "UNKNOWN"
-                
-                # Draw face rectangle
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                
-                # Display name with larger, more visible text
-                name_text = name if name != "Unknown" else "Unknown Person"
-                
-                # Background rectangle for text visibility
-                text_size = cv2.getTextSize(name_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-                cv2.rectangle(frame, (x1, y1-35), (x1 + text_size[0] + 10, y1-5), color, -1)
-                
-                # Name text
-                cv2.putText(frame, name_text, (x1+5, y1-15), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
-                
-                # Confidence indicator
-                conf_text = "({:.0%})".format(similarity)
-                cv2.putText(frame, conf_text, (x1, y2+20), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
-                
-                # Real-time speaking indicator (if face is large enough, likely talking)
-                face_area = (x2-x1) * (y2-y1)
-                if face_area > 15000:  # Large face suggests person is close/talking
-                    cv2.putText(frame, "SPEAKING", (x1, y2+45), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
         
         # Draw all detected faces (even if not recognized) with basic info
         elif boxes is not None:
@@ -886,7 +1035,7 @@ try:
                 if is_stable:
                     if stable_detection_start is None:
                         stable_detection_start = current_time
-                        print(f"\n Stable position detected! Hold for {stability_duration} seconds...")
+                        print(f"\nStable position detected! Hold for {stability_duration} seconds...")
                     
                     # Check if held stable long enough
                     time_stable = (current_time - stable_detection_start).total_seconds()
@@ -919,18 +1068,7 @@ try:
         
         # Handle auto-capture
         if auto_capture_ready:
-            # Trigger face capture with better text
-            # Add this near the top with other global variables
-            auto_capture_message_timer = None
-
-            # In the auto-capture section, replace the putText with:
-            if auto_capture_ready:
-                auto_capture_message_timer = datetime.now()
-
-            # Then, in the UI overlays section (after the continuous recognition status), add:
-            if auto_capture_message_timer and (datetime.now() - auto_capture_message_timer).total_seconds() < 3:
-                cv2.putText(frame, "AUTO-CAPTURING!", (50, 200), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 0, 0), 3, cv2.LINE_AA)
+            auto_capture_message_timer = datetime.now()
             
             # Process face recognition
             current_time_str = datetime.now().strftime("%H:%M:%S")
@@ -938,7 +1076,7 @@ try:
             
             # Use the boxes we already detected
             if boxes is not None:
-                print(f"🔍 Detected {len(boxes)} face(s)")
+                print(f"Detected {len(boxes)} face(s)")
                 
                 for i, box in enumerate(boxes):
                     x1, y1, x2, y2 = [int(b) for b in box]
@@ -1046,11 +1184,16 @@ try:
                         print("Error processing face: {}".format(e))
             
             else:
-                print("👤 No faces detected")
+                print("No faces detected")
             
             # Reset auto-detection
             stable_detection_start = None
             face_positions = []
+        
+        # Display auto-capture message for a few seconds
+        if auto_capture_message_timer and (datetime.now() - auto_capture_message_timer).total_seconds() < 3:
+            cv2.putText(frame, "AUTO-CAPTURING!", (50, 200), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 0, 0), 3, cv2.LINE_AA)
         
         # UI overlays with improved text quality
         current_time = datetime.now().strftime("%H:%M:%S")
@@ -1068,8 +1211,6 @@ try:
         else:
             cv2.putText(frame, "LIVE RECOGNITION: OFF", (10, 90), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (128, 128, 128), 2, cv2.LINE_AA)
-        
-        # Removed positioning instruction text for cleaner display
         
         # Display interface based on mode
         if fullscreen_mode:
@@ -1113,9 +1254,9 @@ try:
             fullscreen_mode = not fullscreen_mode
             cv2.destroyAllWindows()
             if fullscreen_mode:
-                print("📺 Switched to Full-Screen Mode")
+                print("Switched to Full-Screen Mode")
             else:
-                print("📱 Switched to Window Mode")
+                print("Switched to Window Mode")
         
         # Toggle dashboard window (only in window mode)
         if key == ord("d"):
@@ -1137,17 +1278,17 @@ try:
         
         # Backup manual capture with SPACE
         if key == ord(" "):
-            print("\n📸 Manual capture at {}...".format(current_time))
+            print("\nManual capture at {}...".format(current_time))
             
             # Same face recognition code as auto-detection
             if boxes is not None:
-                print(f"🔍 Detected {len(boxes)} face(s)")
+                print(f"Detected {len(boxes)} face(s)")
                 # (Same processing logic as in auto-detection)
             else:
-                print("👤 No faces detected")
+                print("No faces detected")
         
         if key == ord("a"):
-            print("\n📊 Attendance Summary:")
+            print("\nAttendance Summary:")
             if attendance_log:
                 recent_entries = attendance_log[-10:]
                 for entry in recent_entries:
@@ -1157,7 +1298,7 @@ try:
                 print("  No attendance entries yet")
         
         if key == ord("s"):
-            print("\n👥 Current Sessions (People Inside):")
+            print("\nCurrent Sessions (People Inside):")
             if current_sessions:
                 for name, session in current_sessions.items():
                     elapsed = datetime.now() - session["start_time"]
@@ -1179,13 +1320,13 @@ finally:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"smart_attendance_{timestamp}.csv"
         df.to_csv(filename, index=False)
-        print(f"\n💾 Smart auto-detection attendance log saved to {filename}")
+        print(f"\nSmart auto-detection attendance log saved to {filename}")
         
         # Write to Firestore when stopping
         write_to_firestore(attendance_log)
         
         # Show summary statistics
-        print("\n📈 Session Summary:")
+        print("\nSession Summary:")
         print(f"Total entries: {len(attendance_log)}")
         
         # Calculate total time spent per person
