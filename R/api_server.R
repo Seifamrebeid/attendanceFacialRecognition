@@ -674,7 +674,9 @@ function(courseCode, res) {
 # ============================================================================
 
 # Main entry point when script is run directly
-if (!interactive()) {
+# Controlled run guard: only start server if RUN_API_SERVER env var is set to '1'
+# This avoids recursive re-sourcing when plumber parses the file.
+if (Sys.getenv("RUN_API_SERVER") == "1") {
   cat("===========================================\n")
   cat("Face Recognition Attendance API Server\n")
   cat("===========================================\n")
@@ -697,6 +699,11 @@ if (!interactive()) {
   cat("===========================================\n\n")
   
   # Create and run the API
-  pr <- plumber::pr("api_server.R")
+  # When plumb() sources this file it would re-run this block and recurse.
+  # Temporarily unset the RUN_API_SERVER env var while plumb parses the file
+  old_run_flag <- Sys.getenv("RUN_API_SERVER")
+  if (nzchar(old_run_flag)) Sys.unsetenv("RUN_API_SERVER")
+  pr <- plumber::plumb("api_server.R")
+  if (nzchar(old_run_flag)) Sys.setenv("RUN_API_SERVER" = old_run_flag)
   pr$run(port = API_PORT, host = "0.0.0.0")
 }

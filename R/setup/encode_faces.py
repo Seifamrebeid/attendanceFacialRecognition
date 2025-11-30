@@ -14,7 +14,7 @@ print(f"Using device: {device}")
 mtcnn = MTCNN(keep_all=False, device=device)
 resnet = InceptionResnetV1(pretrained="vggface2").eval().to(device)
 
-dataset_dir = "D:\\try\\attendanceFacialRecognition\\R\\setup\\dataset"
+dataset_dir = "dataset"
 if not os.path.exists(dataset_dir):
     print("Dataset directory not found!")
     exit(1)
