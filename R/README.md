@@ -6,6 +6,7 @@
 - **R** (version 4.0+)
 - **Conda** (Anaconda or Miniconda)
 - **Webcam**
+- **Firebase** service.json credentials file
 
 ### Step 2: Setup Conda Environment
 ```bash
@@ -30,7 +31,7 @@ dataset/
 ### Step 4: Encode Faces (One-Time)
 ```bash
 cd R/
-Rscript quick_setup.R
+Rscript setup/quick_setup.R
 ```
 This creates `face_encodings.pkl` with encoded face data.
 
@@ -38,7 +39,12 @@ This creates `face_encodings.pkl` with encoded face data.
 ```bash
 Rscript main.R
 ```
-This launches the camera and starts face recognition.
+
+**New Features:**
+1. **Course Selection** - Choose from Firestore courses list
+2. **Login** - Enter lecturer username/password
+3. **Week Selection** - Select week number (1-16)
+4. **Real-time Attendance** - Records saved immediately to Firestore
 
 ---
 
@@ -47,20 +53,25 @@ This launches the camera and starts face recognition.
 ```
 R/
 ├── main.R                        # ENTRY POINT - Run this to start the app
-├── quick_setup.R                 # SETUP - Run once to encode faces
-│
-├── config.R                      # Settings (camera size, thresholds)
 ├── utils.R                       # Helper functions
-├── environment_setup.R           # Checks Python environment
 │
-├── python_generator_firebase.R   # Generates Firebase code
-├── python_generator_detection.R  # Generates face detection code
-├── python_generator_ui.R         # Generates UI code
-├── python_generator_main.R       # Generates main loop code
+├── setup/                        # Setup and configuration files
+│   ├── config.R                  # Settings (camera size, thresholds)
+│   ├── environment_setup.R       # Python environment checks
+│   └── quick_setup.R             # SETUP - Run once to encode faces
+│
+├── generators/                   # Python code generators
+│   ├── firebase.R                # Generates Firebase code
+│   ├── course_selection.R        # Generates course/login UI code
+│   ├── detection.R               # Generates face detection code
+│   ├── ui.R                      # Generates UI code
+│   └── main_loop.R               # Generates main loop code
+│
+├── generated/                    # Auto-generated Python files
+│   └── face_recognition.py       # Generated: main Python script
 │
 ├── dataset/                      # YOUR FACE IMAGES GO HERE
 ├── face_encodings.pkl            # Generated: encoded face data
-├── face_recognition.py           # Generated: Python script
 │
 ├── README.md                     # This documentation
 └── ENHANCED_FEATURES.md          # Feature documentation
@@ -68,49 +79,53 @@ R/
 
 ---
 
-## Used Files vs Unused Files
+## Firestore Data Structure
 
-### ✅ USED FILES (Required for the app to work)
+### Courses Collection
+```
+courses/
+└── {courseId}
+    ├── courseCode: "EBA3201"
+    ├── courseName: "Advanced Statistics"
+    ├── lecturerName: "Mohamed Fathy"
+    ├── lecturerUsername: "fathy"
+    ├── lecturerPassword: "12345"
+    ├── department: "Ai"
+    ├── semester: "Fall 2025"
+    └── schedule: "Sunday 10:30"
+```
 
-| File | Purpose | When Used |
-|------|---------|-----------|
-| `main.R` | Main entry point | Every time you run the app |
-| `config.R` | Configuration settings | Sourced by main.R |
-| `utils.R` | Helper functions | Sourced by main.R |
-| `environment_setup.R` | Environment checks | Sourced by main.R |
-| `python_generator_firebase.R` | Firebase code generation | Sourced by main.R |
-| `python_generator_detection.R` | Detection code generation | Sourced by main.R |
-| `python_generator_ui.R` | UI code generation | Sourced by main.R |
-| `python_generator_main.R` | Main loop code generation | Sourced by main.R |
-| `quick_setup.R` | Face encoding | Run once at setup |
-| `dataset/` | Face images folder | Used by quick_setup.R |
-
-### 📁 GENERATED FILES (Created automatically)
-
-| File | Created By | Purpose |
-|------|------------|---------|
-| `face_encodings.pkl` | quick_setup.R | Stores face encodings |
-| `face_recognition.py` | main.R | Python script to run recognition |
-| `encode_faces.py` | quick_setup.R | Python script to encode faces |
-| `attendance_*.csv` | main.R | Attendance logs |
-
-### 📄 DOCUMENTATION FILES
-
-| File | Purpose |
-|------|---------|
-| `README.md` | This documentation |
-| `ENHANCED_FEATURES.md` | Feature documentation |
+### Attendance Records (Real-time)
+```
+attendance/
+└── {recordId}
+    ├── studentName: "John Doe"
+    ├── action: "JOIN" | "LEFT" | "RETURNED"
+    ├── similarity: 0.87
+    ├── timestamp: "2025-11-30T10:30:45.123Z"
+    ├── date: "2025-11-30"
+    ├── time: "10:30:45"
+    ├── dayOfWeek: "Sunday"
+    ├── courseId: "abc123"
+    ├── courseCode: "EBA3201"
+    ├── courseName: "Advanced Statistics"
+    ├── department: "Ai"
+    ├── semester: "Fall 2025"
+    ├── weekNumber: 5
+    ├── lecturerName: "Mohamed Fathy"
+    └── createdAt: "2025-11-30T10:30:45.123Z"
+```
 
 ---
 
-## Configuration (config.R)
+## Configuration (setup/config.R)
 
 ```r
-FACE_ENCODINGS_FILE <- "face_encodings.pkl"   # Face data file
-CAMERA_WIDTH <- 1280                          # Camera resolution
+FACE_ENCODINGS_FILE <- "face_encodings.pkl"
+CAMERA_WIDTH <- 1280
 CAMERA_HEIGHT <- 720
-STABILITY_DURATION <- 2.0                     # Seconds to hold face
-SIMILARITY_THRESHOLD <- 0.45                  # Match sensitivity (0-1)
+STABILITY_DURATION <- 2.0         # Seconds to hold face for capture
+SIMILARITY_THRESHOLD <- 0.45      # Match sensitivity (0-1)
 ```
 
 ---
@@ -118,19 +133,16 @@ SIMILARITY_THRESHOLD <- 0.45                  # Match sensitivity (0-1)
 ## Troubleshooting
 
 ### "Face encodings not found"
-Run `Rscript quick_setup.R` first.
+Run `Rscript setup/quick_setup.R` first.
 
 ### "Conda environment not found"
 Create conda environment: `conda create -n faceenv python=3.9`
 
-### "No faces detected"
-- Check lighting
-- Position face clearly in camera
-- Add higher quality images to dataset
+### "No courses found"
+Check your Firestore "courses" collection exists and has data.
 
-### "Low recognition accuracy"
-- Lower `SIMILARITY_THRESHOLD` in config.R (e.g., 0.40)
-- Add more/better images per person
+### "Login failed"
+Ensure you enter the correct lecturerUsername and lecturerPassword for the selected course.
 
 ---
 
@@ -139,5 +151,12 @@ Create conda environment: `conda create -n faceenv python=3.9`
 **To start from zero:**
 1. `conda create -n faceenv python=3.9` + install packages
 2. Add images to `dataset/`
-3. `Rscript quick_setup.R` (once)
+3. `Rscript setup/quick_setup.R` (once)
 4. `Rscript main.R` (to run)
+
+**New Flow:**
+1. Select course from dropdown
+2. Select week (1-16)
+3. Enter lecturer credentials
+4. Click "Start Attendance"
+5. Attendance records saved in real-time to Firestore

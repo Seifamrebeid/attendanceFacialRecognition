@@ -12,14 +12,19 @@ script_dir <- tryCatch({
   "."
 })
 
-# Source all modules (relative to script location)
-source(file.path(script_dir, "config.R"))
+# Source utility functions first
 source(file.path(script_dir, "utils.R"))
-source(file.path(script_dir, "environment_setup.R"))
-source(file.path(script_dir, "python_generator_firebase.R"))
-source(file.path(script_dir, "python_generator_detection.R"))
-source(file.path(script_dir, "python_generator_ui.R"))
-source(file.path(script_dir, "python_generator_main.R"))
+
+# Source setup modules
+source(file.path(script_dir, "setup", "config.R"))
+source(file.path(script_dir, "setup", "environment_setup.R"))
+
+# Source generator modules (simplified names)
+source(file.path(script_dir, "generators", "firebase.R"))
+source(file.path(script_dir, "generators", "course_selection.R"))
+source(file.path(script_dir, "generators", "detection.R"))
+source(file.path(script_dir, "generators", "ui.R"))
+source(file.path(script_dir, "generators", "main_loop.R"))
 
 #' Run the Smart Attendance System
 #'
@@ -30,6 +35,9 @@ source(file.path(script_dir, "python_generator_main.R"))
 run_attendance_system <- function() {
   # Display header
   print_header()
+  
+  # Ensure generated folder exists
+  ensure_directory(file.path(script_dir, "generated"))
   
   # Setup environment
   tryCatch({
@@ -44,6 +52,7 @@ run_attendance_system <- function() {
   
   imports_code <- generate_imports()
   firebase_code <- generate_firebase_code()
+  course_selection_code <- generate_course_selection_code()
   detection_code <- generate_detection_code()
   ui_code <- generate_ui_code()
   main_code <- generate_main_code()
@@ -52,6 +61,7 @@ run_attendance_system <- function() {
   python_script <- combine_python_modules(list(
     imports = imports_code,
     firebase = firebase_code,
+    course_selection = course_selection_code,
     detection = detection_code,
     ui = ui_code,
     main = main_code

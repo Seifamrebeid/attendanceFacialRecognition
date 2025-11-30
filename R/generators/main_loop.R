@@ -36,8 +36,13 @@ generate_main_code <- function() {
   code <- '
 print("Loading smart auto-detection system...")
 
-# Read existing attendance from Firestore
-existing_records = read_firestore_attendance()
+# Show course selection window FIRST
+if not show_course_selection_window():
+    print("No course selected. Exiting...")
+    exit(0)
+
+print(f"\\nStarting attendance for: {selected_course.get(\'courseCode\')} - {selected_course.get(\'courseName\')}")
+print(f"Week {selected_week} | Lecturer: {logged_in_lecturer}")
 
 # Load face encodings
 with open("face_encodings.pkl", "rb") as f:

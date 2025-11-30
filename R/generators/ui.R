@@ -42,14 +42,18 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     draw_text_hq(canvas, "ATTENDANCE CONTROL CENTER", (panel_x, 50), 1.1, (0, 255, 255), 3)
     cv2.line(canvas, (panel_x, 60), (panel_x + 580, 60), (0, 255, 255), 2)
     
+    # Course and Week Info - NEW
+    session_info = get_session_info_text()
+    draw_text_hq(canvas, session_info, (panel_x, 85), 0.8, (255, 255, 0), 2)
+    
     # Current time and status
     current_time = datetime.now().strftime("%H:%M:%S")
     current_date = datetime.now().strftime("%A, %B %d, %Y")
-    draw_text_hq(canvas, current_date, (panel_x, 90), 0.7, (255, 255, 255), 2)
-    draw_text_hq(canvas, f"Time: {current_time}", (panel_x, 115), 0.9, (0, 255, 0), 2)
+    draw_text_hq(canvas, current_date, (panel_x, 110), 0.7, (255, 255, 255), 2)
+    draw_text_hq(canvas, f"Time: {current_time}", (panel_x, 135), 0.9, (0, 255, 0), 2)
     
     # System status indicators
-    status_y = 150
+    status_y = 165
     draw_text_hq(canvas, "SYSTEM STATUS:", (panel_x, status_y), 0.8, (255, 165, 0), 2)
     
     # AI Status

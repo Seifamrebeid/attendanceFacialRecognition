@@ -187,7 +187,7 @@ def calculate_duration(start_time, end_time):
     return duration.total_seconds() / 60
 
 def log_attendance(name, similarity, action):
-    """Log attendance with enhanced tracking"""
+    """Log attendance with enhanced tracking and REAL-TIME Firestore write"""
     global session_counter
     
     timestamp = datetime.now()
@@ -223,6 +223,7 @@ def log_attendance(name, similarity, action):
         duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
         print("[LEFT] {} LEFT at {} (Duration: {})".format(name, timestamp.strftime("%H:%M:%S"), duration_str))
     
+    # Add to local attendance log
     attendance_log.append({
         "name": name,
         "action": action,
@@ -233,6 +234,9 @@ def log_attendance(name, similarity, action):
         "duration_minutes": round(duration_minutes, 1) if duration_minutes else None,
         "session_id": session_id
     })
+    
+    # REAL-TIME: Write to Firestore immediately
+    write_attendance_record_realtime(name, similarity, action)
 '
   
   return(code)

@@ -37,8 +37,8 @@ FIREBASE_SERVICE_FILE <- "service.json"
 CONDA_ENV_NAME <- "faceenv"
 
 #' @title Python Script Output File
-#' @description Name of the generated Python script file
-PYTHON_SCRIPT_FILE <- "face_recognition.py"
+#' @description Name of the generated Python script file (in generated/ folder)
+PYTHON_SCRIPT_FILE <- "generated/face_recognition.py"
 
 #' @title Frame Skip Rate
 #' @description Process every Nth frame for face detection (performance optimization)

@@ -25,7 +25,7 @@ write_python_module <- function(code, filename) {
 #'
 #' @description Combines multiple Python code strings into a single script
 #'              with proper ordering of imports and sections
-#' @param modules Named list of module strings (imports, firebase, detection, ui, main)
+#' @param modules Named list of module strings (imports, firebase, course_selection, detection, ui, main)
 #' @return Character string containing the combined Python script
 #' @export
 combine_python_modules <- function(modules) {
@@ -33,6 +33,7 @@ combine_python_modules <- function(modules) {
   combined <- paste(
     modules$imports,
     modules$firebase,
+    modules$course_selection,
     modules$detection,
     modules$ui,
     modules$main,
