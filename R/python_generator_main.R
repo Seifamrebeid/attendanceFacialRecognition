@@ -112,7 +112,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-print("\\n Smart Auto-Detection Attendance System Started!")
+print("\\nSmart Auto-Detection Attendance System Started!")
 print("AI-Powered Face Recognition")
 print("Full-Screen Professional Interface")
 print("Real-time Continuous Face Recognition")
@@ -309,7 +309,7 @@ try:
                 if is_stable:
                     if stable_detection_start is None:
                         stable_detection_start = current_time
-                        print(f"\\n Stable position detected! Hold for {stability_duration} seconds...")
+                        print(f"\\nStable position detected! Hold for {stability_duration} seconds...")
                     
                     # Check if held stable long enough
                     time_stable = (current_time - stable_detection_start).total_seconds()
@@ -552,7 +552,7 @@ try:
         
         # Backup manual capture with SPACE
         if key == ord(" "):
-            print("\\n Manual capture at {}...".format(current_time))
+            print("\\nManual capture at {}...".format(current_time))
             
             # Same face recognition code as auto-detection
             if boxes is not None:
@@ -562,7 +562,7 @@ try:
                 print("No faces detected")
         
         if key == ord("a"):
-            print("\\n Attendance Summary:")
+            print("\\nAttendance Summary:")
             if attendance_log:
                 recent_entries = attendance_log[-10:]
                 for entry in recent_entries:
@@ -572,7 +572,7 @@ try:
                 print("  No attendance entries yet")
         
         if key == ord("s"):
-            print("\\n Current Sessions (People Inside):")
+            print("\\nCurrent Sessions (People Inside):")
             if current_sessions:
                 for name, session in current_sessions.items():
                     elapsed = datetime.now() - session["start_time"]
@@ -594,13 +594,13 @@ finally:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"smart_attendance_{timestamp}.csv"
         df.to_csv(filename, index=False)
-        print(f"\\n Smart auto-detection attendance log saved to {filename}")
+        print(f"\\nSmart auto-detection attendance log saved to {filename}")
         
         # Write to Firestore when stopping
         write_to_firestore(attendance_log)
         
         # Show summary statistics
-        print("\\n Session Summary:")
+        print("\\nSession Summary:")
         print(f"Total entries: {len(attendance_log)}")
         
         # Calculate total time spent per person

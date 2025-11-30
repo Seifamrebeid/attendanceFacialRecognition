@@ -61,7 +61,7 @@ def write_to_firestore(attendance_log):
         return
     
     try:
-        print("\\n Writing to Firestore...")
+        print("\\nWriting to Firestore...")
         batch = db.batch()
         
         for entry in attendance_log:

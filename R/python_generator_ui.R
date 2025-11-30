@@ -211,7 +211,6 @@ def create_dashboard_window(attendance_log, current_sessions):
     if attendance_log:
         recent_entries = attendance_log[-8:]
         for entry in recent_entries:
-        
             time_str = entry["time"]
             name_str = entry["name"]
             action_str = entry["action"]
