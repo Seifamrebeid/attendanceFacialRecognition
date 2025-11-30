@@ -72,16 +72,14 @@ cat("📄 Created encode_faces.py\n")
 
 # Run the encoding script
 cat("🔄 Running face encoding...\n")
-system2(file.path("venv", "Scripts", "python.exe"),
-        args = "encode_faces.py")# Check if encodings were created
+system2("conda", args = c("run", "-n", "faceenv", "python", "encode_faces.py"))# Check if encodings were created
 if (file.exists("face_encodings.pkl")) {
   cat("✅ Face encodings created successfully!\n")
   # Create a simple R recognition function
   cat("📋 Creating R recognition functions...\n")
 
-  # Load the encodings in R (we\'ll need to install more packages for pickle)
-  system2(file.path("venv", "Scripts", "pip.exe"),
-          args = c("install", "pickle5"))
+  # Load the encodings in R (we'll need to install more packages for pickle)
+  system2("conda", args = c("run", "-n", "faceenv", "pip", "install", "pickle5"))
   cat("\n🎉 Setup completed!\n")
   cat("To use the system:\n")
   cat("1. Face encodings are in face_encodings.pkl\n")

@@ -19,19 +19,19 @@ try:
     initialize_app(cred)
     db = firestore.client()
     firestore_available = True
-    print("✅ Firebase Firestore initialized")
+    print("Firebase Firestore initialized")
 except Exception as e:
-    print(f"⚠️ Firestore initialization failed: {e}")
+    print(f"Firestore initialization failed: {e}")
     firestore_available = False
 
 def create_unified_fullscreen_interface(frame, attendance_log, current_sessions, quality_score, boxes, optimal_face, stable_detection_start, stability_duration):
-    """Create a unified full-screen interface with camera and dashboard"""
+    # """Create a unified full-screen interface with camera and dashboard"""
     # Create full HD canvas (1920x1080)
     canvas = np.zeros((1080, 1920, 3), dtype=np.uint8)
     
     # Helper function for high-quality text rendering
     def draw_text_hq(img, text, pos, font_scale, color, thickness=2, font=cv2.FONT_HERSHEY_SIMPLEX):
-        """Draw high-quality text with anti-aliasing"""
+        # """Draw high-quality text with anti-aliasing"""
         cv2.putText(img, text, pos, font, font_scale, color, thickness, cv2.LINE_AA)
     
     # === LEFT SIDE: CAMERA FEED ===
@@ -71,9 +71,8 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     # Auto-detection status
     auto_status_color = (0, 255, 0) if stable_detection_start else (255, 100, 100)
     auto_status_text = "DETECTING" if stable_detection_start else "STANDBY"
-    cv2.circle(canvas, (panel_x + 20, status_y + 55), 8, auto_status_color, -1)
-    draw_text_hq(canvas, f"Auto-Capture: {auto_status_text}", (panel_x + 40, status_y + 60), 0.6, (255, 255, 255), 2)
-    
+    cv2.circle(canvas, (panel_x + 20, status_y + 55), 12, auto_status_color, -1)
+    draw_text_hq(canvas, f"Auto-Capture: {auto_status_text}", (panel_x + 40, status_y + 60), 0.8, (255, 255, 255), 3)  
     # Firebase status
     firebase_color = (0, 255, 0) if firestore_available else (0, 0, 255)
     firebase_text = "CONNECTED" if firestore_available else "OFFLINE"
@@ -122,12 +121,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
             if activity_list_y > activity_y + 170:
                 break
                 
-            action_color = (0, 255, 0) if entry["action"] == "JOIN" else (0, 165, 255)
-            action_symbol = "→" if entry["action"] == "JOIN" else "←"
-            
-            # Action indicator
-            draw_text_hq(canvas, action_symbol, (panel_x + 10, activity_list_y), 0.8, action_color, 2)
-            
+
             # Entry details
             time_str = entry["time"]
             name_str = entry["name"]
@@ -150,17 +144,20 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     total_entries = len(attendance_log)
     total_joins = sum(1 for entry in attendance_log if entry["action"] == "JOIN")
     total_lefts = sum(1 for entry in attendance_log if entry["action"] == "LEFT")
+    total_returned = sum(1 for entry in attendance_log if entry["action"] == "RETURNED")
     
     cv2.putText(canvas, f"Total Entries: {total_entries}", (panel_x + 20, stats_y + 30), 
                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(canvas, f"Joins: {total_joins}", (panel_x + 20, stats_y + 50), 
                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+    cv2.putText(canvas, f"Returns: {total_returned}", (panel_x + 150, stats_y + 50), 
+               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
     cv2.putText(canvas, f"Exits: {total_lefts}", (panel_x + 300, stats_y + 50), 
                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 1)
     
     # === TOP STATUS BAR ===
     cv2.rectangle(canvas, (0, 0), (1920, 30), (20, 20, 20), -1)
-    cv2.putText(canvas, "🎯 SMART ATTENDANCE SYSTEM", (20, 22), 
+    cv2.putText(canvas, "SMART ATTENDANCE SYSTEM", (20, 22), 
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
     
     # Quality indicator in top bar
@@ -184,7 +181,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     return canvas
 
 def create_dashboard_window(attendance_log, current_sessions):
-    """Create a separate dashboard window for dual-screen mode"""
+    # """Create a separate dashboard window for dual-screen mode"""
     dashboard = np.ones((600, 800, 3), dtype=np.uint8) * 50  # Dark gray background
     
     # Title
@@ -227,12 +224,7 @@ def create_dashboard_window(attendance_log, current_sessions):
     if attendance_log:
         recent_entries = attendance_log[-8:]
         for entry in recent_entries:
-            action_color = (0, 255, 0) if entry["action"] == "JOIN" else (0, 165, 255)
-            action_symbol = "→" if entry["action"] == "JOIN" else "←"
-            
-            cv2.putText(dashboard, action_symbol, (70, y_pos), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.8, action_color, 2)
-            
+        
             time_str = entry["time"]
             name_str = entry["name"]
             action_str = entry["action"]
@@ -261,9 +253,9 @@ def create_dashboard_window(attendance_log, current_sessions):
 
 # Smart auto-detection using face positioning and stability
 def detect_face_in_optimal_zone(boxes, frame_shape, stability_threshold=0.02):
-    """Detect if face is in optimal position for auto-capture"""
+    # """Detect if face is in optimal position for auto-capture"""
     if boxes is None:
-        return False, None, 0
+        return False, None
     
     height, width = frame_shape[:2]
     center_x, center_y = width // 2, height // 2
@@ -292,25 +284,13 @@ def detect_face_in_optimal_zone(boxes, frame_shape, stability_threshold=0.02):
         # Check face size (should be substantial but not too close)
         optimal_size = 8000 <= face_area <= 50000
         
-        # Calculate quality score
         if in_zone and optimal_size:
-            # Distance from perfect center
-            center_distance = ((face_center_x - center_x)**2 + (face_center_y - center_y)**2)**0.5
-            max_distance = (zone_width**2 + zone_height**2)**0.5 / 2
-            center_score = 1 - (center_distance / max_distance)
-            
-            # Size score (closer to ideal size = higher score)
-            ideal_area = 20000
-            size_score = 1 - abs(face_area - ideal_area) / ideal_area
-            
-            overall_score = (center_score * 0.6 + size_score * 0.4)
-            
-            return True, (x1, y1, x2, y2, face_center_x, face_center_y), overall_score
+            return True, (x1, y1, x2, y2, face_center_x, face_center_y)
     
-    return False, None, 0
+    return False, None
 
 def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
-    """Draw smart positioning guidance with high-quality text"""
+    # """Draw smart positioning guidance with high-quality text"""
     height, width = frame.shape[:2]
     center_x, center_y = width // 2, height // 2
     
@@ -345,7 +325,6 @@ def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
                 # Green for optimal position
                 color = (0, 255, 0)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
-                draw_text_camera(frame, f"READY {quality_score:.0%}", (x1, y1 - 10), 0.9, color, 2)
             else:
                 # Guide to optimal position
                 color = (255, 255, 0)  # Yellow for guidance
@@ -402,10 +381,10 @@ def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
         
         # Enhanced text with percentage and status
         cv2.putText(frame, f"Quality: {quality_score:.0%} - {status_text}", (bar_x, bar_y + 10), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA)
 
 def read_firestore_attendance():
-    """Read all attendance records from Firestore at startup"""
+    # """Read all attendance records from Firestore at startup"""
     if not firestore_available:
         return []
     
@@ -424,17 +403,17 @@ def read_firestore_attendance():
                 "session_id": data.get("session_id")
             })
         
-        print(f"📖 Read {len(firestore_records)} records from Firestore:")
+        print(f"Read {len(firestore_records)} records from Firestore:")
         for record in firestore_records[-3:]:  # Show last 3
-            print(f"  {record["timestamp"]} - {record["name"]} {record["action"]}")
+            print(f"  {record['timestamp']} - {record['name']} {record['action']}")
         
         return firestore_records
     except Exception as e:
-        print(f"❌ Error reading from Firestore: {e}")
+        print(f"Error reading from Firestore: {e}")
         return []
 
 def write_to_firestore(attendance_log):
-    """Write attendance log to Firestore when stopping"""
+    # """Write attendance log to Firestore when stopping"""
     if not firestore_available or not attendance_log:
         return
     
@@ -459,10 +438,10 @@ def write_to_firestore(attendance_log):
             batch.set(doc_ref, doc_data)
         
         batch.commit()
-        print(f"✅ Successfully wrote {len(attendance_log)} records to Firestore")
+        print(f"Successfully wrote {len(attendance_log)} records to Firestore")
         
     except Exception as e:
-        print(f"❌ Error writing to Firestore: {e}")
+        print(f"Error writing to Firestore: {e}")
 
 print("Loading smart auto-detection system...")
 
@@ -510,6 +489,7 @@ def find_best_match(face_encoding, threshold=0.45):
 # Enhanced attendance tracking with entry/exit
 attendance_log = []
 current_sessions = {}  # Track who is currently "inside"
+recent_departures = {}  # Track people who left recently (within last 10 minutes)
 last_detection = {}    # Prevent duplicate detections within short time
 session_counter = 1
 
@@ -530,17 +510,50 @@ last_in_optimal_zone = False
 last_face_data = None
 last_quality_score = 0
 
+# Real-time face recognition tracking
+continuous_recognition = True  # Enable continuous face name display
+recognized_faces = {}  # Store recognized faces with confidence
+face_recognition_interval = 10  # Recognize faces every 10 frames for performance
+
+# Face tracking system - analyze only when face changes
+face_tracker = {}  # Track face positions and their recognized names
+face_change_threshold = 50  # Pixel distance to consider same face
+last_face_positions = []  # Store previous frame face positions
+current_face_names = {}  # Current frame face names (position -> name)
+
 def get_current_action(person_name):
-    """Determine if this should be JOIN or LEFT"""
-    return "LEFT" if person_name in current_sessions else "JOIN"
+    # """Determine if this should be JOIN, LEFT, or potential RETURNED"""
+    if person_name in current_sessions:
+        return "LEFT"
+    else:
+        # Check if they left recently (within 10 minutes) - could be RETURNED
+        current_time = datetime.now()
+        if (person_name in recent_departures and 
+            (current_time - recent_departures[person_name]).total_seconds() < 600):  # 10 minutes
+            return "RETURNED"
+        else:
+            return "JOIN"
 
 def calculate_duration(start_time, end_time):
-    """Calculate duration in minutes"""
     duration = end_time - start_time
     return duration.total_seconds() / 60
 
+def is_same_face(pos1, pos2, threshold=50):
+    if pos1 is None or pos2 is None:
+        return False
+    center1_x, center1_y = (pos1[0] + pos1[2]) // 2, (pos1[1] + pos1[3]) // 2
+    center2_x, center2_y = (pos2[0] + pos2[2]) // 2, (pos2[1] + pos2[3]) // 2
+    distance = ((center1_x - center2_x)**2 + (center1_y - center2_y)**2)**0.5
+    return distance < threshold
+
 def log_attendance(name, similarity, action):
-    """Log attendance with enhanced tracking"""
+    global session_counter
+    
+    timestamp = datetime.now()
+    duration_minutes = None
+    session_id = None
+    
+def log_attendance(name, similarity, action):
     global session_counter
     
     timestamp = datetime.now()
@@ -554,19 +567,27 @@ def log_attendance(name, similarity, action):
         }
         session_id = session_counter
         session_counter += 1
-        print(f"🟢 {name} JOINED at {timestamp.strftime("%H:%M:%S")}")
+        
+        # Remove from recent departures if they were there
+        if name in recent_departures:
+            del recent_departures[name]
+            
+        print("[JOIN] {} JOINED at {}".format(name, timestamp.strftime("%H:%M:%S")))
         
     elif action == "LEFT" and name in current_sessions:
         start_time = current_sessions[name]["start_time"]
         session_id = current_sessions[name]["session_id"]
         duration_minutes = calculate_duration(start_time, timestamp)
         
+        # Track this person departure time for RETURNED detection
+        recent_departures[name] = timestamp
+        
         del current_sessions[name]
         
         hours = int(duration_minutes // 60)
         minutes = int(duration_minutes % 60)
         duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
-        print(f"🔴 {name} LEFT at {timestamp.strftime("%H:%M:%S")} (Duration: {duration_str})")
+        print("[LEFT] {} LEFT at {} (Duration: {})".format(name, timestamp.strftime("%H:%M:%S"), duration_str))
     
     attendance_log.append({
         "name": name,
@@ -583,7 +604,7 @@ def log_attendance(name, similarity, action):
 print("\nInitializing camera...")
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
-    print("❌ Cannot open camera")
+    print("Cannot open camera")
     exit(1)
 
 # Set optimized camera resolution for better performance and quality
@@ -592,9 +613,10 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cap.set(cv2.CAP_PROP_FPS, 30)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-print("\n🤖 Smart Auto-Detection Attendance System Started!")
-print("🎯 AI-Powered Face Recognition")
-print("📊 Full-Screen Professional Interface")
+print("\n Smart Auto-Detection Attendance System Started!")
+print("AI-Powered Face Recognition")
+print("Full-Screen Professional Interface")
+print("Real-time Continuous Face Recognition")
 print("Controls:")
 print("- POSITION yourself in the optimal zone for auto-capture")
 print("- Press Q to quit")
@@ -602,6 +624,7 @@ print("- Press A to view attendance summary")
 print("- Press S to show current sessions")
 print("- Press D to toggle dashboard/fullscreen mode")
 print("- Press F to toggle fullscreen mode")
+print("- Press C to toggle continuous recognition on/off")
 print("- Press SPACE for manual capture (backup)")
 
 # Display mode control
@@ -623,6 +646,7 @@ try:
         auto_capture_ready = False
         optimal_face = None
         quality_score = 0
+        current_faces = []  # Store current frame face recognition results
         
         if frame_skip_counter % frame_skip_rate == 0:
             # Smart face detection for positioning (every 2nd frame)
@@ -637,13 +661,113 @@ try:
             else:
                 last_boxes = None
             
-            # Check face positioning
-            in_optimal_zone, face_data, quality_score = detect_face_in_optimal_zone(boxes, frame.shape)
+            # Check face positioning  
+            in_optimal_zone, face_data = detect_face_in_optimal_zone(boxes, frame.shape)
             
             # Store state for next frames
             last_in_optimal_zone = in_optimal_zone
             last_face_data = face_data
-            last_quality_score = quality_score
+            
+            # Smart face recognition - only analyze when faces change
+            if continuous_recognition and boxes is not None:
+                # Check if faces have changed compared to last frame
+                faces_changed = False
+                if len(boxes) != len(last_face_positions):
+                    faces_changed = True
+                else:
+                    for i, box in enumerate(boxes):
+                        if i >= len(last_face_positions) or not is_same_face(box, last_face_positions[i]):
+                            faces_changed = True
+                            break
+                
+                # Only re-analyze if faces have changed
+                if faces_changed or not current_face_names:
+                    print("Analyzing faces - change detected")
+                    current_face_names = {}  # Clear previous names
+                    
+                    for i, box in enumerate(boxes):
+                        x1, y1, x2, y2 = [int(b) for b in box]
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
+                        
+                        if x2 <= x1 or y2 <= y1:
+                            continue
+                        
+                        try:
+                            # Extract face for recognition
+                            face_img = rgb_frame[y1:y2, x1:x2]
+                            face_pil = Image.fromarray(face_img)
+                            
+                            face_tensor = mtcnn(face_pil)
+                            if face_tensor is None:
+                                continue
+                            
+                            if len(face_tensor.shape) == 3:
+                                face_tensor = face_tensor.unsqueeze(0)
+                            
+                            face_tensor = face_tensor.to(device)
+                            
+                            with torch.no_grad():
+                                emb = resnet(face_tensor)
+                            
+                            emb_array = emb.squeeze(0).cpu().numpy()
+                            emb_norm = emb_array / (np.linalg.norm(emb_array) + 1e-10)
+                            
+                            name, similarity = find_best_match(emb_norm)
+                            
+                            # Store the recognized name for this face position
+                            face_key = "face_{}".format(i)
+                            current_face_names[face_key] = {
+                                "name": name if similarity >= 0.35 else "Unknown",
+                                "similarity": similarity,
+                                "box": (x1, y1, x2, y2)
+                            }
+                            
+                        except Exception as e:
+                            continue
+                    
+                    # Update last_face_positions for next frame comparison
+                    last_face_positions = boxes.copy() if boxes is not None else []
+                    x1, y1, x2, y2 = [int(b) for b in box]
+                    x1, y1 = max(0, x1), max(0, y1)
+                    x2, y2 = min(frame.shape[1], x2), min(frame.shape[0], y2)
+                    
+                    if x2 <= x1 or y2 <= y1:
+                        continue
+                    
+                    try:
+                        # Extract face for recognition
+                        face_img = rgb_frame[y1:y2, x1:x2]
+                        face_pil = Image.fromarray(face_img)
+                        
+                        face_tensor = mtcnn(face_pil)
+                        if face_tensor is None:
+                            continue
+                        
+                        if len(face_tensor.shape) == 3:
+                            face_tensor = face_tensor.unsqueeze(0)
+                        
+                        face_tensor = face_tensor.to(device)
+                        
+                        with torch.no_grad():
+                            emb = resnet(face_tensor)
+                        
+                        emb_array = emb.squeeze(0).cpu().numpy()
+                        emb_norm = emb_array / (np.linalg.norm(emb_array) + 1e-10)
+                        
+                        name, similarity = find_best_match(emb_norm)
+                        
+                        if similarity >= 0.35:  # Lower threshold for continuous recognition
+                            current_faces.append({
+                                "name": name,
+                                "similarity": similarity,
+                                "box": (x1, y1, x2, y2),
+                                "face_id": i
+                            })
+                    
+                    except Exception as e:
+                        continue
+                        
         else:
             # Use previous detection results to maintain continuity
             boxes = last_boxes
@@ -653,6 +777,87 @@ try:
             # Still need rgb_frame for face recognition later
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
+        # Display persistent face recognition results
+        if current_face_names and boxes is not None:
+            for i, box in enumerate(boxes):
+                face_key = "face_{}".format(i)
+                if face_key in current_face_names:
+                    face_info = current_face_names[face_key]
+                    x1, y1, x2, y2 = [int(b) for b in box]
+                    name = face_info["name"]
+                    similarity = face_info["similarity"]
+                    
+                    # Choose color based on recognition confidence
+                    if name != "Unknown" and similarity >= 0.5:
+                        color = (0, 255, 0)  # Green for good recognition
+                    elif name != "Unknown" and similarity >= 0.35:
+                        color = (0, 255, 255)  # Yellow for medium recognition
+                    else:
+                        color = (128, 128, 128)  # Gray for unknown
+                    
+                    # Draw face rectangle
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    
+                    # Display name with clean, large text
+                    name_text = name if name != "Unknown" else "Unknown"
+                    
+                    # Background rectangle for text visibility
+                    text_size = cv2.getTextSize(name_text, cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2)[0]
+                    cv2.rectangle(frame, (x1, y1-40), (x1 + text_size[0] + 10, y1-5), color, -1)
+                    
+                    # Name text - larger and cleaner
+                    cv2.putText(frame, name_text, (x1+5, y1-15), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2, cv2.LINE_AA)
+            for face_info in current_faces:
+                x1, y1, x2, y2 = face_info["box"]
+                name = face_info["name"]
+                similarity = face_info["similarity"]
+                
+                # Choose color based on recognition confidence
+                if name != "Unknown" and similarity >= 0.5:
+                    color = (0, 255, 0)  # Green for good recognition
+                    confidence_text = "CONFIDENT"
+                elif name != "Unknown" and similarity >= 0.35:
+                    color = (0, 255, 255)  # Yellow for medium recognition
+                    confidence_text = "POSSIBLE"
+                else:
+                    color = (0, 165, 255)  # Orange for unknown
+                    confidence_text = "UNKNOWN"
+                
+                # Draw face rectangle
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                
+                # Display name with larger, more visible text
+                name_text = name if name != "Unknown" else "Unknown Person"
+                
+                # Background rectangle for text visibility
+                text_size = cv2.getTextSize(name_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+                cv2.rectangle(frame, (x1, y1-35), (x1 + text_size[0] + 10, y1-5), color, -1)
+                
+                # Name text
+                cv2.putText(frame, name_text, (x1+5, y1-15), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
+                
+                # Confidence indicator
+                conf_text = "({:.0%})".format(similarity)
+                cv2.putText(frame, conf_text, (x1, y2+20), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
+                
+                # Real-time speaking indicator (if face is large enough, likely talking)
+                face_area = (x2-x1) * (y2-y1)
+                if face_area > 15000:  # Large face suggests person is close/talking
+                    cv2.putText(frame, "SPEAKING", (x1, y2+45), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
+        
+        # Draw all detected faces (even if not recognized) with basic info
+        elif boxes is not None:
+            for box in boxes:
+                x1, y1, x2, y2 = [int(b) for b in box]
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (128, 128, 128), 1)
+                cv2.putText(frame, "Analyzing...", (x1, y1-10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (128, 128, 128), 1, cv2.LINE_AA)
+        
+        # Original optimal zone detection for attendance logging
         if in_optimal_zone:
             optimal_face = face_data
             current_time = datetime.now()
@@ -681,7 +886,7 @@ try:
                 if is_stable:
                     if stable_detection_start is None:
                         stable_detection_start = current_time
-                        print(f"\n🎯 Stable position detected! Hold for {stability_duration} seconds...")
+                        print(f"\n Stable position detected! Hold for {stability_duration} seconds...")
                     
                     # Check if held stable long enough
                     time_stable = (current_time - stable_detection_start).total_seconds()
@@ -715,12 +920,21 @@ try:
         # Handle auto-capture
         if auto_capture_ready:
             # Trigger face capture with better text
-            cv2.putText(frame, "📸 AUTO-CAPTURING!", (50, 200), 
-                      cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 0, 0), 3, cv2.LINE_AA)
+            # Add this near the top with other global variables
+            auto_capture_message_timer = None
+
+            # In the auto-capture section, replace the putText with:
+            if auto_capture_ready:
+                auto_capture_message_timer = datetime.now()
+
+            # Then, in the UI overlays section (after the continuous recognition status), add:
+            if auto_capture_message_timer and (datetime.now() - auto_capture_message_timer).total_seconds() < 3:
+                cv2.putText(frame, "AUTO-CAPTURING!", (50, 200), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 0, 0), 3, cv2.LINE_AA)
             
             # Process face recognition
             current_time_str = datetime.now().strftime("%H:%M:%S")
-            print(f"\n🤖 Auto-detection triggered! Scanning faces at {current_time_str}...")
+            print(f"\nAuto-detection triggered! Scanning faces at {current_time_str}...")
             
             # Use the boxes we already detected
             if boxes is not None:
@@ -757,24 +971,58 @@ try:
                         name, similarity = find_best_match(emb_norm)
                         
                         if name != "Unknown" and similarity >= 0.45:
-                            # Determine action (JOIN or LEFT)
+                            # Determine action (JOIN, LEFT, or RETURNED)
                             action = get_current_action(name)
                             
-                            # Prevent duplicate entries for SAME person within 5 seconds
+                            # Check for recent duplicate detection
                             current_time_obj = datetime.now()
+                            
+                            # Prevent duplicate entries for SAME person within 5 seconds  
                             if (name in last_detection and 
                                 (current_time_obj - last_detection[name]).seconds < 5):
                                 continue  # Skip only for same person within 5 seconds
                             
-                            last_detection[name] = current_time_obj
+                            # Handle RETURNED action (person came back within 10 minutes)
+                            if action == "RETURNED":
+                                print("[RETURNED] {} RETURNED at {} (came back within 10 minutes)".format(name, current_time_obj.strftime("%H:%M:%S")))
+                                
+                                # Create new session for the returned person
+                                current_sessions[name] = {
+                                    "start_time": current_time_obj,
+                                    "session_id": session_counter
+                                }
+                                session_counter += 1
+                                
+                                # Remove from recent departures
+                                if name in recent_departures:
+                                    del recent_departures[name]
+                                
+                                # Add to attendance log with RETURNED action
+                                attendance_log.append({
+                                    "name": name,
+                                    "action": action,
+                                    "timestamp": current_time_obj.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "date": current_time_obj.strftime("%Y-%m-%d"),
+                                    "time": current_time_obj.strftime("%H:%M:%S"),
+                                    "similarity": round(similarity, 2),
+                                    "duration_minutes": None,
+                                    "session_id": current_sessions[name]["session_id"]
+                                })
+                                
+                            else:
+                                # Normal JOIN/LEFT processing
+                                log_attendance(name, similarity, action)
                             
-                            # Log attendance
-                            log_attendance(name, similarity, action)
+                            # Update last detection time for all successful detections
+                            last_detection[name] = current_time_obj
                             
                             # Draw on frame with action-specific colors
                             if action == "JOIN":
                                 color = (0, 255, 0)  # Green for JOIN
                                 status_text = "JOINING"
+                            elif action == "RETURNED":
+                                color = (255, 255, 0)  # Cyan for RETURNED
+                                status_text = "RETURNED"
                             else:
                                 color = (0, 165, 255)  # Orange for LEFT
                                 status_text = "LEAVING"
@@ -782,20 +1030,20 @@ try:
                             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
                             
                             # Display name, action and similarity with better text
-                            label = f"{name} {status_text} ({similarity:.2f})"
+                            label = "{} {} ({:.2f})".format(name, status_text, similarity)
                             cv2.putText(frame, label, (x1, y1-10), 
                                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2, cv2.LINE_AA)
                             
-                            print(f"👤 {name} - Action: {action} - Confidence: {similarity:.2f}")
+                            print(" {} - Action: {} - Confidence: {:.2f}".format(name, action, similarity))
                         
                         else:
                             # Unknown person with better text
                             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                            cv2.putText(frame, f"Unknown ({similarity:.2f})", (x1, y1-10), 
+                            cv2.putText(frame, "Unknown ({:.2f})".format(similarity), (x1, y1-10), 
                                       cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2, cv2.LINE_AA)
                             
                     except Exception as e:
-                        print(f"Error processing face: {e}")
+                        print("Error processing face: {}".format(e))
             
             else:
                 print("👤 No faces detected")
@@ -806,12 +1054,20 @@ try:
         
         # UI overlays with improved text quality
         current_time = datetime.now().strftime("%H:%M:%S")
-        cv2.putText(frame, f"Time: {current_time}", (10, 30), 
+        cv2.putText(frame, "Time: {}".format(current_time), (10, 30), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
         
         sessions_count = len(current_sessions)
-        cv2.putText(frame, f"Currently Inside: {sessions_count}", (10, 60), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Currently Inside: {}".format(sessions_count), (10, 60), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
+        
+        # Continuous recognition status
+        if continuous_recognition:
+            cv2.putText(frame, "LIVE RECOGNITION: ON", (10, 90), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+        else:
+            cv2.putText(frame, "LIVE RECOGNITION: OFF", (10, 90), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (128, 128, 128), 2, cv2.LINE_AA)
         
         # Removed positioning instruction text for cleaner display
         
@@ -867,15 +1123,21 @@ try:
                 show_dashboard = not show_dashboard
                 if not show_dashboard:
                     cv2.destroyWindow("Attendance Dashboard")
-                    print("📊 Dashboard window hidden")
+                    print("Dashboard window hidden")
                 else:
-                    print("📊 Dashboard window shown")
+                    print("Dashboard window shown")
             else:
-                print("📊 Dashboard toggle only available in window mode (Press F to switch)")
+                print("Dashboard toggle only available in window mode (Press F to switch)")
+        
+        # Toggle continuous recognition
+        if key == ord("c"):
+            continuous_recognition = not continuous_recognition
+            status = "ON" if continuous_recognition else "OFF"
+            print("Continuous face recognition: {}".format(status))
         
         # Backup manual capture with SPACE
         if key == ord(" "):
-            print(f"\n📸 Manual capture at {current_time}...")
+            print("\n📸 Manual capture at {}...".format(current_time))
             
             # Same face recognition code as auto-detection
             if boxes is not None:
@@ -889,8 +1151,8 @@ try:
             if attendance_log:
                 recent_entries = attendance_log[-10:]
                 for entry in recent_entries:
-                    duration_text = f" - {entry["duration_minutes"]:.1f}min" if entry["duration_minutes"] else ""
-                    print(f"  {entry["timestamp"]} - {entry["name"]} {entry["action"]}{duration_text}")
+                    duration_text = " - {:.1f}min".format(entry["duration_minutes"]) if entry["duration_minutes"] else ""
+                    print("  {} - {} {}{}".format(entry["timestamp"], entry["name"], entry["action"], duration_text))
             else:
                 print("  No attendance entries yet")
         
@@ -943,5 +1205,5 @@ finally:
                 duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
                 print(f"  {name}: {duration_str}")
     
-    print("\n🤖 Smart auto-detection attendance session ended")
+    print("\nSmart auto-detection attendance session ended")
 
