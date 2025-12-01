@@ -64,9 +64,12 @@ class RecognitionResult(BaseModel):
     success: bool
     recognized: bool
     name: Optional[str] = None
+    image_filename: Optional[str] = None     # <-- new field: original filename (with extension)
     student_id: Optional[str] = None
     similarity: Optional[float] = None
     message: str
+    results: Optional[dict] = None
+    parts: Optional[List[str]] = None
 
 class ConfirmResponse(BaseModel):
     success: bool
@@ -135,13 +138,47 @@ def load_models():
 # ============================================
 def decode_base64_image(base64_string: str) -> Image.Image:
     """Decode base64 string to PIL Image"""
-    # Remove data URL prefix if present
-    if "base64," in base64_string:
-        base64_string = base64_string.split("base64,")[1]
-    
-    image_data = base64.b64decode(base64_string)
-    image = Image.open(io.BytesIO(image_data))
-    return image.convert('RGB')
+    # Be tolerant: input may be bytes, dict, or a data URL string
+    if isinstance(base64_string, bytes):
+        image_data = base64_string
+    else:
+        # If the client sent a non-string (e.g. an object), try to extract a string
+        if not isinstance(base64_string, str):
+            if isinstance(base64_string, dict):
+                base64_string = base64_string.get("data") or base64_string.get("image") or str(base64_string)
+            else:
+                base64_string = str(base64_string)
+
+        # Remove data URL prefix if present (e.g. "data:image/jpeg;base64,...")
+        if "base64," in base64_string:
+            base64_string = base64_string.split("base64,", 1)[1]
+
+        base64_string = base64_string.strip()
+
+        try:
+            image_data = base64.b64decode(base64_string)
+        except Exception as e:
+            # Try URL-unquoting then decode as a fallback
+            try:
+                import urllib.parse
+                decoded = urllib.parse.unquote(base64_string)
+                image_data = base64.b64decode(decoded)
+            except Exception as e2:
+                raise ValueError(f"Base64 decode failed: {e}") from e2
+
+    # Basic validation
+    if not image_data or len(image_data) < 10:
+        raise ValueError("Decoded image data is empty or too small")
+
+    # Try opening with PIL, provide helpful debug info on failure
+    try:
+        image = Image.open(io.BytesIO(image_data))
+        return image.convert('RGB')
+    except Exception as e:
+        # Provide a short hex preview of the bytes to help debugging
+        preview = image_data[:64]
+        hex_preview = ' '.join(f"{b:02x}" for b in preview)
+        raise ValueError(f"Could not identify image file (first bytes: {hex_preview}) - {e}") from e
 
 def recognize_face(image: Image.Image) -> dict:
     """Perform face recognition on an image"""
@@ -197,19 +234,43 @@ def recognize_face(image: Image.Image) -> dict:
     dist, idx = searcher.kneighbors([emb], n_neighbors=1, return_distance=True)
     cosine_sim = 1 - dist[0][0]
     
-    threshold = 0.45  # Same threshold as R project
+    threshold = 0.60  # Same threshold as R project
     
     if cosine_sim >= threshold:
         matched_name = names[idx[0][0]]
-        # Generate a student ID from the name (in real app, this would come from database)
-        student_id = f"STD-{hash(matched_name) % 10000:04d}"
-        
+        # keep the original filename exactly as stored
+        image_filename = str(matched_name)
+
+        # Try to extract name components and student ID from filename
+        # Expected format: firstname_lastname_other_studentID.ext
+        # Remove extension for parsing but keep original filename in image_filename
+        name_no_ext = image_filename
+        for ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
+            if name_no_ext.lower().endswith(ext):
+                name_no_ext = name_no_ext[: -len(ext)]
+                break
+
+        parts = name_no_ext.split('_')
+
+        if len(parts) >= 2:
+            # Last part should be student ID, rest are name parts
+            student_id = parts[-1]
+            name_components = parts[:-1]
+            formatted_name = ' '.join([part.capitalize() for part in name_components])
+        else:
+            # fallback
+            formatted_name = str(matched_name)
+            student_id = f"STD-{hash(matched_name) % 10000:04d}"
+
         return {
+            "matched_name": matched_name,           # original matched entry
+            "image_filename": image_filename,       # <-- full filename with extension
             "recognized": True,
-            "name": str(matched_name),
+            "name": formatted_name,                 # formatted display name
             "student_id": student_id,
             "similarity": float(cosine_sim),
-            "message": f"Face recognized with {cosine_sim:.0%} confidence"
+            "message": f"Face recognized with {cosine_sim:.0%} confidence",
+            "parts": parts
         }
     else:
         return {
@@ -272,6 +333,14 @@ async def recognize_frame(request: FrameRequest):
             )
     
     try:
+        # Debug: log a short summary of the incoming image field
+        try:
+            img_type = type(request.image).__name__
+            img_head = (request.image[:120] + '...') if isinstance(request.image, str) and len(request.image) > 120 else str(request.image)
+            img_len = len(request.image) if isinstance(request.image, (str, bytes)) else None
+        except Exception:
+            print("[recognize_frame] received image field (could not summarize)")
+
         # Decode the image
         image = decode_base64_image(request.image)
         
@@ -282,10 +351,14 @@ async def recognize_frame(request: FrameRequest):
             success=True,
             recognized=result.get("recognized", False),
             name=result.get("name"),
+            image_filename=result.get("image_filename"),   # <-- add this
             student_id=result.get("student_id"),
             similarity=result.get("similarity"),
-            message=result.get("message", "")
+            message=result.get("message", ""),
+            results=result,
+            parts=result.get("parts")
         )
+
         
     except Exception as e:
         return RecognitionResult(

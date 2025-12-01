@@ -76,7 +76,7 @@ def write_to_firestore(attendance_log):
                 "created_at": datetime.now().isoformat()
             }
             
-            doc_ref = db.collection("attendance").document()
+            # doc_ref = db.collection("attendance").document()
             batch.set(doc_ref, doc_data)
         
         batch.commit()
