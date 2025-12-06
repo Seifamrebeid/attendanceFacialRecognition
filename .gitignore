@@ -1,3 +1,1 @@
-*.csv
-*.json
-.env
+admin/node_modules

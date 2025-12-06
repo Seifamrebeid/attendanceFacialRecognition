@@ -46,9 +46,19 @@ check_face_encodings <- function() {
 install_python_packages <- function() {
   cat("Installing required Python packages...\n")
   
+  # Get conda path
+  conda_path <- tryCatch({
+    # Try to find conda in common locations
+    if (file.exists("C:/Users/boudy/miniconda3/Scripts/conda.exe")) {
+      "C:/Users/boudy/miniconda3/Scripts/conda.exe"
+    } else {
+      "conda"  # Fallback to system PATH
+    }
+  }, error = function(e) "conda")
+  
   # Install pandas and firebase-admin for data handling and cloud sync
   result <- system2(
-    "conda",
+    conda_path,
     args = c("run", "-n", CONDA_ENV_NAME, "pip", "install", 
              "pandas", "firebase-admin"),
     stdout = FALSE,
@@ -71,8 +81,17 @@ install_python_packages <- function() {
 #' @return TRUE if environment exists
 #' @export
 check_conda_environment <- function() {
+  # Get conda path
+  conda_path <- tryCatch({
+    if (file.exists("C:/Users/boudy/miniconda3/Scripts/conda.exe")) {
+      "C:/Users/boudy/miniconda3/Scripts/conda.exe"
+    } else {
+      "conda"
+    }
+  }, error = function(e) "conda")
+  
   result <- system2(
-    "conda",
+    conda_path,
     args = c("env", "list"),
     stdout = TRUE,
     stderr = TRUE
@@ -126,8 +145,17 @@ verify_system_requirements <- function() {
 run_python_script <- function(script_path) {
   cat(sprintf("Running Python script: %s\n", script_path))
   
+  # Get conda path
+  conda_path <- tryCatch({
+    if (file.exists("C:/Users/boudy/miniconda3/Scripts/conda.exe")) {
+      "C:/Users/boudy/miniconda3/Scripts/conda.exe"
+    } else {
+      "conda"
+    }
+  }, error = function(e) "conda")
+  
   result <- system2(
-    "conda",
+    conda_path,
     args = c("run", "-n", CONDA_ENV_NAME, "python", script_path)
   )
   

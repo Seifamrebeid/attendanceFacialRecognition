@@ -9,7 +9,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 mtcnn = MTCNN(keep_all=False, device=device)
 resnet = InceptionResnetV1(pretrained='vggface2').eval().to(device)
 
-dataset_dir = "D:\\try\\attendanceFacialRecognition\\python\\dataset"
+dataset_dir = "dataset"  # Relative path
 enc_file = "encodings.npy"
 names_file = "names.npy"
 
@@ -21,7 +21,7 @@ if not os.path.exists(dataset_dir):
     exit(1)
 
 for fname in sorted(os.listdir(dataset_dir)):
-    if not fname.lower().endswith((".jpg", ".jpeg", ".png")):
+    if not fname.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
         continue
     path = os.path.join(dataset_dir, fname)
     try:

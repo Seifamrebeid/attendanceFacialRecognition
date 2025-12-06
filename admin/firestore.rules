@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Courses collection
+    // Only authenticated admins can read/write
+    match /courses/{courseId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Students collection
+    // Only authenticated admins can read/write
+    match /students/{studentId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Attendance collection
+    // Only authenticated admins can read/write
+    match /attendance/{attendanceId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Warnings collection
+    // Only authenticated admins can read/write
+    match /warnings/{warningId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Predictions collection
+    // Only authenticated admins can read/write
+    match /predictions/{predictionId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
