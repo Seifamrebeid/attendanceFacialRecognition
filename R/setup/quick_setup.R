@@ -71,16 +71,25 @@ else:
 writeLines(python_encode_script, "encode_faces.py")
 cat("📄 Created encode_faces.py\n")
 
+# Get conda path
+conda_path <- tryCatch({
+  if (file.exists("C:/Users/boudy/miniconda3/Scripts/conda.exe")) {
+    "C:/Users/boudy/miniconda3/Scripts/conda.exe"
+  } else {
+    "conda"
+  }
+}, error = function(e) "conda")
+
 # Run the encoding script
 cat("🔄 Running face encoding...\n")
-system2("conda", args = c("run", "-n", "faceenv", "python", "encode_faces.py"))# Check if encodings were created
+system2(conda_path, args = c("run", "-n", "faceenv", "python", "encode_faces.py"))# Check if encodings were created
 if (file.exists("face_encodings.pkl")) {
   cat("✅ Face encodings created successfully!\n")
   # Create a simple R recognition function
   cat("📋 Creating R recognition functions...\n")
 
   # Load the encodings in R (we'll need to install more packages for pickle)
-  system2("conda", args = c("run", "-n", "faceenv", "pip", "install", "pickle5"))
+  system2(conda_path, args = c("run", "-n", "faceenv", "pip", "install", "pickle5"))
   cat("\n🎉 Setup completed!\n")
   cat("To use the system:\n")
   cat("1. Face encodings are in face_encodings.pkl\n")
