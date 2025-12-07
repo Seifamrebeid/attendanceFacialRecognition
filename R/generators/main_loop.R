@@ -85,7 +85,7 @@ max_position_history = 10
 
 # Performance optimization
 frame_skip_counter = 0
-frame_skip_rate = 1  # Process every 2nd frame for face detection (reduced for better reliability)
+frame_skip_rate = 3 # Process every 4th frame for face detection (reduced for better reliability)
 
 # Maintain detection state between frames
 last_boxes = None

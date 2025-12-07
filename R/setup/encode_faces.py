@@ -14,7 +14,8 @@ print(f"Using device: {device}")
 mtcnn = MTCNN(keep_all=False, device=device)
 resnet = InceptionResnetV1(pretrained="vggface2").eval().to(device)
 
-dataset_dir = "dataset"
+dataset_dir = "./dataset"
+print(f"Looking for images in {dataset_dir}...")
 if not os.path.exists(dataset_dir):
     print("Dataset directory not found!")
     exit(1)
