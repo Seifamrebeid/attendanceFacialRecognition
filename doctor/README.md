@@ -1,16 +1,71 @@
-# React + Vite
+# Doctor Dashboard - Lecturer Attendance Management
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A real-time attendance monitoring dashboard for lecturers to track student attendance using facial recognition data.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Course Login**: Lecturers select their course and authenticate with username/password
+- **Real-time Monitoring**: Live updates of student attendance via Firestore onSnapshot
+- **Student List**: View all students with current status (Present/Left/Returned/Absent)
+- **Weekly Statistics**: Analyze attendance trends with charts and tables
+- **Action Tracking**: Monitor JOIN/LEFT/RETURNED events for each student
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Install Dependencies
+```bash
+cd doctor
+npm install
+```
 
-## Expanding the ESLint configuration
+### 2. Configure Firebase
+Create a `.env` file in the `doctor/` directory:
+```
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 3. Add Student CSV
+Place the `datasdt.csv` file in the `public/` folder with student data:
+```
+Name,StudentID,Email,PhotoURL/PhotoID
+John Doe,12345,john@example.com,googleDriveId
+```
+
+### 4. Run Development Server
+```bash
+npm run dev
+```
+
+## Data Structure
+
+### Courses Collection
+- `courseCode`, `courseName`
+- `lecturerUsername`, `lecturerPassword`, `lecturerName`
+- `department`, `semester`, `schedule`
+- `maxStudents`, `credits`, `description`
+
+### Attendance Collection
+- `studentName`, `courseId`, `weekNumber`
+- `action` (JOIN/LEFT/RETURNED)
+- `timestamp`, `date`, `time`, `dayOfWeek`
+- `similarity`, `courseCode`, `courseName`
+
+## Pages
+
+- **Login**: Course selection and lecturer authentication
+- **Overview**: Course info and recent activity feed
+- **Students**: Real-time student presence tracking
+- **Weekly Stats**: Attendance rate trends and analytics
+
+## Technologies
+
+- React 19 + Vite
+- Firebase/Firestore (real-time database)
+- React Router (navigation)
+- Recharts (data visualization)
+- CSS (custom styling)
