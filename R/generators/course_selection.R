@@ -58,14 +58,14 @@ def show_course_selection_window():
     # Create main window
     root = tk.Tk()
     root.title("Attendance System - Course Selection")
-    root.geometry("600x500")
+    root.geometry("650x600")
     root.configure(bg="#2c3e50")
     
     # Center window
     root.update_idletasks()
-    x = (root.winfo_screenwidth() - 600) // 2
-    y = (root.winfo_screenheight() - 500) // 2
-    root.geometry(f"600x500+{x}+{y}")
+    x = (root.winfo_screenwidth() - 650) // 2
+    y = (root.winfo_screenheight() - 600) // 2
+    root.geometry(f"650x600+{x}+{y}")
     
     result = {"success": False}
     
@@ -102,20 +102,20 @@ def show_course_selection_window():
     
     # Login Frame
     login_frame = tk.LabelFrame(root, text="Lecturer Login", font=("Helvetica", 12),
-                                fg="white", bg="#34495e", padx=20, pady=10)
-    login_frame.pack(fill="x", padx=30, pady=10)
+                                fg="white", bg="#34495e", padx=20, pady=15)
+    login_frame.pack(fill="x", padx=30, pady=15)
     
     # Username
     tk.Label(login_frame, text="Username:", font=("Helvetica", 10), 
-             fg="white", bg="#34495e").pack(anchor="w")
-    username_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=40)
-    username_entry.pack(pady=5)
+             fg="white", bg="#34495e").pack(anchor="w", pady=(5, 0))
+    username_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=45)
+    username_entry.pack(pady=(5, 10))
     
     # Password
     tk.Label(login_frame, text="Password:", font=("Helvetica", 10),
-             fg="white", bg="#34495e").pack(anchor="w")
-    password_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=40, show="*")
-    password_entry.pack(pady=5)
+             fg="white", bg="#34495e").pack(anchor="w", pady=(5, 0))
+    password_entry = tk.Entry(login_frame, font=("Helvetica", 12), width=45, show="*")
+    password_entry.pack(pady=(5, 10))
     
     def on_login():
         global selected_course, selected_week, logged_in_lecturer

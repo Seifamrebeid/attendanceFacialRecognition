@@ -159,11 +159,12 @@ try:
             # Smart face detection for positioning (every 2nd frame)
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # Resize frame for faster processing
-            small_frame = cv2.resize(rgb_frame, (0, 0), fx=0.5, fy=0.5)
+            scale_factor = 0.4
+            small_frame = cv2.resize(rgb_frame, (0, 0), fx=scale_factor, fy=scale_factor)
             boxes, _ = mtcnn.detect(small_frame)
             # Scale boxes back to original size
             if boxes is not None:
-                boxes = boxes * 2
+                boxes = boxes / scale_factor
                 last_boxes = boxes
             else:
                 last_boxes = None
