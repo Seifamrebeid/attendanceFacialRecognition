@@ -6,31 +6,33 @@
  * @returns {Object} Map of studentName -> current status info
  */
 export const getCurrentStudentStatuses = (attendanceRecords) => {
-  const studentStatuses = {}
+  const studentStatuses = {};
 
   // Sort by timestamp descending
   const sorted = [...attendanceRecords].sort((a, b) => {
-    const timeA = new Date(a.timestamp || a.createdAt)
-    const timeB = new Date(b.timestamp || b.createdAt)
-    return timeB - timeA
-  })
+    const timeA = new Date(a.timestamp || a.createdAt);
+    const timeB = new Date(b.timestamp || b.createdAt);
+    return timeB - timeA;
+  });
 
   // Get last action for each student
   sorted.forEach((record) => {
-    const studentName = record.studentName
+    const studentName = record.studentName;
     if (!studentStatuses[studentName]) {
       studentStatuses[studentName] = {
         studentName,
         currentStatus: record.action, // JOIN, LEFT, or RETURNED
         lastTimestamp: record.timestamp || record.createdAt,
-        lastSeen: new Date(record.timestamp || record.createdAt).toLocaleString(),
-        similarity: record.similarity
-      }
+        lastSeen: new Date(
+          record.timestamp || record.createdAt
+        ).toLocaleString(),
+        similarity: record.similarity,
+      };
     }
-  })
+  });
 
-  return studentStatuses
-}
+  return studentStatuses;
+};
 
 /**
  * Count unique weeks attended per student
@@ -38,28 +40,28 @@ export const getCurrentStudentStatuses = (attendanceRecords) => {
  * @returns {Object} Map of studentName -> unique weeks count
  */
 export const getStudentJoinCounts = (attendanceRecords) => {
-  const studentWeeks = {}
+  const studentWeeks = {};
 
   attendanceRecords.forEach((record) => {
-    const studentName = record.studentName
-    const weekNumber = record.weekNumber
-    
-    if (record.action === 'JOIN' && weekNumber) {
+    const studentName = record.studentName;
+    const weekNumber = record.weekNumber;
+
+    if (record.action === "JOIN" && weekNumber) {
       if (!studentWeeks[studentName]) {
-        studentWeeks[studentName] = new Set()
+        studentWeeks[studentName] = new Set();
       }
-      studentWeeks[studentName].add(weekNumber)
+      studentWeeks[studentName].add(weekNumber);
     }
-  })
+  });
 
   // Convert Sets to counts
-  const joinCounts = {}
-  Object.keys(studentWeeks).forEach(name => {
-    joinCounts[name] = studentWeeks[name].size
-  })
+  const joinCounts = {};
+  Object.keys(studentWeeks).forEach((name) => {
+    joinCounts[name] = studentWeeks[name].size;
+  });
 
-  return joinCounts
-}
+  return joinCounts;
+};
 
 /**
  * Group attendance records by week number
@@ -67,18 +69,18 @@ export const getStudentJoinCounts = (attendanceRecords) => {
  * @returns {Object} Map of weekNumber -> records array
  */
 export const groupByWeek = (attendanceRecords) => {
-  const weekGroups = {}
+  const weekGroups = {};
 
   attendanceRecords.forEach((record) => {
-    const week = record.weekNumber || 0
+    const week = record.weekNumber || 0;
     if (!weekGroups[week]) {
-      weekGroups[week] = []
+      weekGroups[week] = [];
     }
-    weekGroups[week].push(record)
-  })
+    weekGroups[week].push(record);
+  });
 
-  return weekGroups
-}
+  return weekGroups;
+};
 
 /**
  * Calculate weekly statistics
@@ -87,21 +89,23 @@ export const groupByWeek = (attendanceRecords) => {
  * @returns {Object} Weekly statistics
  */
 export const calculateWeekStats = (weekRecords, maxStudents) => {
-  const uniqueStudents = new Set(weekRecords.map(r => r.studentName)).size
-  const joinCount = weekRecords.filter(r => r.action === 'JOIN').length
-  const leftCount = weekRecords.filter(r => r.action === 'LEFT').length
-  const returnedCount = weekRecords.filter(r => r.action === 'RETURNED').length
-  
-  const similarities = weekRecords
-    .filter(r => r.similarity !== undefined)
-    .map(r => r.similarity)
-  const avgSimilarity = similarities.length > 0
-    ? similarities.reduce((sum, val) => sum + val, 0) / similarities.length
-    : 0
+  const uniqueStudents = new Set(weekRecords.map((r) => r.studentName)).size;
+  const joinCount = weekRecords.filter((r) => r.action === "JOIN").length;
+  const leftCount = weekRecords.filter((r) => r.action === "LEFT").length;
+  const returnedCount = weekRecords.filter(
+    (r) => r.action === "RETURNED"
+  ).length;
 
-  const attendanceRate = maxStudents > 0 
-    ? (uniqueStudents / maxStudents) * 100 
-    : 0
+  const similarities = weekRecords
+    .filter((r) => r.similarity !== undefined)
+    .map((r) => r.similarity);
+  const avgSimilarity =
+    similarities.length > 0
+      ? similarities.reduce((sum, val) => sum + val, 0) / similarities.length
+      : 0;
+
+  const attendanceRate =
+    maxStudents > 0 ? (uniqueStudents / maxStudents) * 100 : 0;
 
   return {
     uniqueStudents,
@@ -110,9 +114,9 @@ export const calculateWeekStats = (weekRecords, maxStudents) => {
     leftCount,
     returnedCount,
     avgSimilarity: avgSimilarity.toFixed(2),
-    totalRecords: weekRecords.length
-  }
-}
+    totalRecords: weekRecords.length,
+  };
+};
 
 /**
  * Calculate overall course statistics
@@ -121,21 +125,26 @@ export const calculateWeekStats = (weekRecords, maxStudents) => {
  * @returns {Object} Overall statistics
  */
 export const calculateOverallStats = (attendanceRecords, maxStudents) => {
-  const uniqueStudents = new Set(attendanceRecords.map(r => r.studentName)).size
-  const totalJoins = attendanceRecords.filter(r => r.action === 'JOIN').length
-  const totalLeft = attendanceRecords.filter(r => r.action === 'LEFT').length
-  const totalReturned = attendanceRecords.filter(r => r.action === 'RETURNED').length
+  const uniqueStudents = new Set(attendanceRecords.map((r) => r.studentName))
+    .size;
+  const totalJoins = attendanceRecords.filter(
+    (r) => r.action === "JOIN"
+  ).length;
+  const totalLeft = attendanceRecords.filter((r) => r.action === "LEFT").length;
+  const totalReturned = attendanceRecords.filter(
+    (r) => r.action === "RETURNED"
+  ).length;
 
   const similarities = attendanceRecords
-    .filter(r => r.similarity !== undefined)
-    .map(r => r.similarity)
-  const avgSimilarity = similarities.length > 0
-    ? similarities.reduce((sum, val) => sum + val, 0) / similarities.length
-    : 0
+    .filter((r) => r.similarity !== undefined)
+    .map((r) => r.similarity);
+  const avgSimilarity =
+    similarities.length > 0
+      ? similarities.reduce((sum, val) => sum + val, 0) / similarities.length
+      : 0;
 
-  const attendanceRate = maxStudents > 0 
-    ? (uniqueStudents / maxStudents) * 100 
-    : 0
+  const attendanceRate =
+    maxStudents > 0 ? (uniqueStudents / maxStudents) * 100 : 0;
 
   return {
     totalStudents: uniqueStudents,
@@ -144,6 +153,6 @@ export const calculateOverallStats = (attendanceRecords, maxStudents) => {
     totalLeft,
     totalReturned,
     avgSimilarity: avgSimilarity.toFixed(2),
-    attendanceRate: attendanceRate.toFixed(1)
-  }
-}
+    attendanceRate: attendanceRate.toFixed(1),
+  };
+};

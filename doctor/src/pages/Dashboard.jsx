@@ -1,18 +1,18 @@
-import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom'
-import { useCourse } from '../context/CourseContext'
-import './Dashboard.css'
+import { Link, useNavigate, Outlet, useLocation } from "react-router-dom";
+import { useCourse } from "../context/CourseContext";
+import "./Dashboard.css";
 
 const Dashboard = () => {
-  const { selectedCourse, lecturerName, logout } = useCourse()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { selectedCourse, lecturerName, logout } = useCourse();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
+    logout();
+    navigate("/");
+  };
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) => location.pathname === path;
 
   return (
     <div className="dashboard-container">
@@ -33,21 +33,25 @@ const Dashboard = () => {
       </header>
 
       <nav className="dashboard-nav">
-        <Link 
-          to="/dashboard" 
-          className={isActive('/dashboard') ? 'nav-link active' : 'nav-link'}
+        <Link
+          to="/dashboard"
+          className={isActive("/dashboard") ? "nav-link active" : "nav-link"}
         >
           Overview
         </Link>
-        <Link 
-          to="/dashboard/students" 
-          className={isActive('/dashboard/students') ? 'nav-link active' : 'nav-link'}
+        <Link
+          to="/dashboard/students"
+          className={
+            isActive("/dashboard/students") ? "nav-link active" : "nav-link"
+          }
         >
           Students
         </Link>
-        <Link 
-          to="/dashboard/weekly" 
-          className={isActive('/dashboard/weekly') ? 'nav-link active' : 'nav-link'}
+        <Link
+          to="/dashboard/weekly"
+          className={
+            isActive("/dashboard/weekly") ? "nav-link active" : "nav-link"
+          }
         >
           Weekly Stats
         </Link>
@@ -57,7 +61,7 @@ const Dashboard = () => {
         <Outlet />
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;

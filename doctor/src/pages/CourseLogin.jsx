@@ -1,63 +1,66 @@
-import { useState, useEffect } from 'react'
-import { getAllCourses, validateLecturerCredentials } from '../services/coursesService'
-import { useNavigate } from 'react-router-dom'
-import { useCourse } from '../context/CourseContext'
-import './CourseLogin.css'
+import { useState, useEffect } from "react";
+import {
+  getAllCourses,
+  validateLecturerCredentials,
+} from "../services/coursesService";
+import { useNavigate } from "react-router-dom";
+import { useCourse } from "../context/CourseContext";
+import "./CourseLogin.css";
 
 const CourseLogin = () => {
-  const [courses, setCourses] = useState([])
-  const [selectedCourseId, setSelectedCourseId] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
-  const { login } = useCourse()
+  const [courses, setCourses] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const { login } = useCourse();
 
   useEffect(() => {
-    loadCourses()
-  }, [])
+    loadCourses();
+  }, []);
 
   const loadCourses = async () => {
     try {
-      const coursesData = await getAllCourses()
-      setCourses(coursesData)
+      const coursesData = await getAllCourses();
+      setCourses(coursesData);
       if (coursesData.length > 0) {
-        setSelectedCourseId(coursesData[0].id)
+        setSelectedCourseId(coursesData[0].id);
       }
     } catch (err) {
-      setError('Failed to load courses')
-      console.error(err)
+      setError("Failed to load courses");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleLogin = (e) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError("");
 
-    const course = courses.find(c => c.id === selectedCourseId)
+    const course = courses.find((c) => c.id === selectedCourseId);
     if (!course) {
-      setError('Please select a course')
-      return
+      setError("Please select a course");
+      return;
     }
 
     if (!validateLecturerCredentials(course, username, password)) {
-      setError('Invalid username or password for this course')
-      return
+      setError("Invalid username or password for this course");
+      return;
     }
 
-    login(course, course.lecturerName)
-    navigate('/dashboard')
-  }
+    login(course, course.lecturerName);
+    navigate("/dashboard");
+  };
 
   if (loading) {
     return (
       <div className="login-container">
         <div className="loading">Loading courses...</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -77,7 +80,7 @@ const CourseLogin = () => {
               onChange={(e) => setSelectedCourseId(e.target.value)}
               required
             >
-              {courses.map(course => (
+              {courses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.courseCode} - {course.courseName}
                 </option>
@@ -123,7 +126,7 @@ const CourseLogin = () => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CourseLogin
+export default CourseLogin;

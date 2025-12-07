@@ -1,10 +1,10 @@
 // Courses Service
 // Handles Firestore operations for courses collection
 
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from '../config/firebase'
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../config/firebase";
 
-const COLLECTION_NAME = 'courses'
+const COLLECTION_NAME = "courses";
 
 /**
  * Get all courses from Firestore
@@ -12,23 +12,23 @@ const COLLECTION_NAME = 'courses'
  */
 export const getAllCourses = async () => {
   try {
-    const coursesRef = collection(db, COLLECTION_NAME)
-    const querySnapshot = await getDocs(coursesRef)
+    const coursesRef = collection(db, COLLECTION_NAME);
+    const querySnapshot = await getDocs(coursesRef);
 
-    const courses = []
+    const courses = [];
     querySnapshot.forEach((doc) => {
       courses.push({
         id: doc.id,
-        ...doc.data()
-      })
-    })
+        ...doc.data(),
+      });
+    });
 
-    return courses
+    return courses;
   } catch (error) {
-    console.error('Error fetching courses:', error)
-    throw error
+    console.error("Error fetching courses:", error);
+    throw error;
   }
-}
+};
 
 /**
  * Validate lecturer credentials for a specific course
@@ -38,5 +38,7 @@ export const getAllCourses = async () => {
  * @returns {boolean} True if credentials match
  */
 export const validateLecturerCredentials = (course, username, password) => {
-  return course.lecturerUsername === username && course.lecturerPassword === password
-}
+  return (
+    course.lecturerUsername === username && course.lecturerPassword === password
+  );
+};
