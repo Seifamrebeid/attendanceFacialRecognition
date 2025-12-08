@@ -17,6 +17,7 @@ import AttendancePage from './pages/AttendancePage';
 import WarningsPage from './pages/WarningsPage';
 import LateAnalyticsPage from './pages/LateAnalyticsPage';
 import AbsencePredictionPage from './pages/AbsencePredictionPage';
+import ReportsPage from './pages/ReportsPage';
 
 // Create Material-UI theme with modern design
 const theme = createTheme({
@@ -152,6 +153,14 @@ function App() {
                             element={
                                 <ProtectedRoute>
                                     <LateAnalyticsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/reports"
+                            element={
+                                <ProtectedRoute>
+                                    <ReportsPage />
                                 </ProtectedRoute>
                             }
                         />

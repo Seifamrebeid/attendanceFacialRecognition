@@ -1,244 +1,299 @@
-// Warnings Page - Display Student Warnings
-// Shows students with 3+ absences and email status
+// Warnings Page - High Risk Students
+// Displays students with 3+ absences and allows issuing warnings
 
 import React, { useState, useEffect } from 'react';
 import {
     Container,
     Box,
     Typography,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
+    Grid,
+    Card,
+    CardContent,
+    CircularProgress,
+    Alert,
+    Button,
+    Tooltip,
+    IconButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     FormControl,
     InputLabel,
     Select,
     MenuItem,
-    Chip,
-    CircularProgress,
-    Alert,
-    Button,
-    Avatar
+    TextField,
+    Snackbar,
+    Chip
 } from '@mui/material';
-import { Warning, Refresh, Email, EmailOutlined } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { Warning, Send, Refresh, History } from '@mui/icons-material';
 import Navbar from '../components/Navbar';
-import { getAllWarnings, getWarningsByCourse } from '../services/warningsService';
+import StudentPhotoAvatar from '../components/StudentPhotoAvatar';
+import { getHighRiskStudents } from '../services/attendanceService';
+import { createWarning } from '../services/warningsService';
 import { getAllCourses } from '../services/coursesService';
-import { getAllStudents } from '../services/studentsService';
 
 const WarningsPage = () => {
-    const [warnings, setWarnings] = useState([]);
-    const [courses, setCourses] = useState([]);
-    const [students, setStudents] = useState([]);
+    const [atRiskStudents, setAtRiskStudents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedCourse, setSelectedCourse] = useState('all');
     const [error, setError] = useState('');
+    const [courses, setCourses] = useState([]);
+
+    // Warning System State
+    const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [warningType, setWarningType] = useState('Low Attendance');
+    const [warningMessage, setWarningMessage] = useState('');
+    const [sendingWarning, setSendingWarning] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     useEffect(() => {
         loadData();
     }, []);
 
-    useEffect(() => {
-        loadWarnings();
-    }, [selectedCourse]);
-
     const loadData = async () => {
-        try {
-            const [coursesData, studentsData] = await Promise.all([
-                getAllCourses(),
-                getAllStudents()
-            ]);
-            setCourses(coursesData);
-            setStudents(studentsData);
-        } catch (err) {
-            setError('Failed to load data');
-        }
-    };
-
-    const loadWarnings = async () => {
         setLoading(true);
         try {
-            let data;
-            if (selectedCourse === 'all') {
-                data = await getAllWarnings();
-            } else {
-                data = await getWarningsByCourse(selectedCourse);
-            }
-            setWarnings(data);
+            const [studentsData, coursesData] = await Promise.all([
+                getHighRiskStudents(3), // Threshold of 3 absences
+                getAllCourses()
+            ]);
+            setAtRiskStudents(studentsData);
+            setCourses(coursesData);
         } catch (err) {
-            setError('Failed to load warnings');
+            console.error(err);
+            setError('Failed to load data');
         } finally {
             setLoading(false);
         }
     };
 
-    const getStudentName = (studentId) => {
-        const student = students.find(s => s.id === studentId);
-        return student ? student.name : studentId;
+    const handleOpenWarning = (student) => {
+        setSelectedStudent(student);
+        // Find a course they are enrolled in or just pick the first one for context if needed
+        // For now, we'll let the user specify or just use a generic message
+        setWarningMessage(`Dear ${student.name}, you have accumulated ${student.absenceCount} absences. Please contact the administration.`);
+        setWarningDialogOpen(true);
     };
 
-    const getCourseName = (courseId) => {
-        const course = courses.find(c => c.id === courseId);
-        return course ? course.name : courseId;
-    };
+    const handleSendWarning = async () => {
+        if (!selectedStudent) return;
 
-    const getSeverityColor = (absenceCount) => {
-        if (absenceCount >= 5) return 'error';
-        if (absenceCount >= 4) return 'warning';
-        return 'default';
+        setSendingWarning(true);
+        try {
+            // We need a course ID. If we don't have one specific to the absence, 
+            // we might need to ask the user to select one in the dialog.
+            // For now, we'll try to find a course or use a placeholder.
+            const defaultCourse = courses[0];
+
+            await createWarning({
+                courseId: defaultCourse?.id || 'general',
+                courseName: defaultCourse?.name || 'General Warning',
+                studentId: selectedStudent.id,
+                studentName: selectedStudent.name,
+                studentEmail: selectedStudent.email,
+                warningType,
+                message: warningMessage,
+                createdBy: 'Admin'
+            });
+
+            setSnackbar({
+                open: true,
+                message: `Warning sent to ${selectedStudent.name}`,
+                severity: 'success'
+            });
+            setWarningDialogOpen(false);
+        } catch (error) {
+            console.error('Failed to send warning:', error);
+            setSnackbar({
+                open: true,
+                message: 'Failed to send warning. Please try again.',
+                severity: 'error'
+            });
+        } finally {
+            setSendingWarning(false);
+        }
     };
 
     return (
         <Box>
             <Navbar />
-            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Student Warnings
-                </Typography>
-                <Typography variant="body2" color="textSecondary" paragraph>
-                    Students with 3 or more absences
-                </Typography>
+            <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+                <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
+                    <Box>
+                        <Typography variant="h4" gutterBottom fontWeight="bold">
+                            At-Risk Students
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                            Students with 3 or more absences
+                        </Typography>
+                    </Box>
+                    <Button
+                        startIcon={<Refresh />}
+                        onClick={loadData}
+                        variant="outlined"
+                    >
+                        Refresh
+                    </Button>
+                </Box>
 
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-                {/* Filters */}
-                <Paper sx={{ p: 2, mb: 3 }}>
-                    <Box display="flex" gap={2} alignItems="center">
-                        <FormControl sx={{ minWidth: 250 }}>
-                            <InputLabel>Filter by Course</InputLabel>
-                            <Select
-                                value={selectedCourse}
-                                label="Filter by Course"
-                                onChange={(e) => setSelectedCourse(e.target.value)}
-                            >
-                                <MenuItem value="all">All Courses</MenuItem>
-                                {courses.map(course => (
-                                    <MenuItem key={course.id} value={course.id}>
-                                        {course.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <Button
-                            variant="outlined"
-                            startIcon={<Refresh />}
-                            onClick={loadWarnings}
-                        >
-                            Refresh
-                        </Button>
-                    </Box>
-                </Paper>
 
                 {loading ? (
                     <Box display="flex" justifyContent="center" p={4}>
                         <CircularProgress />
                     </Box>
                 ) : (
-                    <>
-                        {warnings.length > 0 && (
-                            <Alert severity="warning" sx={{ mb: 2 }}>
-                                <strong>{warnings.length} student(s)</strong> have reached the warning threshold
-                            </Alert>
-                        )}
-
-                        <TableContainer component={Paper}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell><strong>Student Name</strong></TableCell>
-                                        <TableCell><strong>Course</strong></TableCell>
-                                        <TableCell align="center"><strong>Total Absences</strong></TableCell>
-                                        <TableCell><strong>Last Absence Date</strong></TableCell>
-                                        <TableCell align="center"><strong>Email Sent</strong></TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {warnings.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} align="center">
-                                                <Box py={4}>
-                                                    <Warning sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                                                    <Typography color="textSecondary">
-                                                        No warnings found. This is good news!
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        warnings.map((warning) => (
-                                            <TableRow
-                                                key={warning.id}
-                                                hover
-                                                sx={{
-                                                    backgroundColor: warning.absenceCount >= 5
-                                                        ? 'rgba(211, 47, 47, 0.05)'
-                                                        : 'transparent'
-                                                }}
+                    <Grid container spacing={3}>
+                        {atRiskStudents.length === 0 ? (
+                            <Grid item xs={12}>
+                                <Alert severity="success">
+                                    No students currently meet the high-risk threshold (3+ absences).
+                                </Alert>
+                            </Grid>
+                        ) : (
+                            atRiskStudents.map((student) => (
+                                <Grid item xs={12} sm={6} md={4} lg={3} key={student.id}>
+                                    <Card
+                                        sx={{
+                                            height: '100%',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            position: 'relative',
+                                            border: '1px solid #ff9800', // Warning color border
+                                            boxShadow: 3
+                                        }}
+                                    >
+                                        <Tooltip title="Issue Warning">
+                                            <IconButton
+                                                color="warning"
+                                                sx={{ position: 'absolute', top: 8, right: 8 }}
+                                                onClick={() => handleOpenWarning(student)}
                                             >
-                                                <TableCell>
-                                                    <Box display="flex" alignItems="center" gap={2}>
-                                                        <Avatar
-                                                            src={students.find(s => s.id === warning.studentId)?.photoUrl}
-                                                            alt={getStudentName(warning.studentId)}
-                                                            sx={{ width: 32, height: 32 }}
-                                                        >
-                                                            {getStudentName(warning.studentId)?.charAt(0)}
-                                                        </Avatar>
-                                                        {getStudentName(warning.studentId)}
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell>{getCourseName(warning.courseId)}</TableCell>
-                                                <TableCell align="center">
-                                                    <Chip
-                                                        label={warning.absenceCount}
-                                                        color={getSeverityColor(warning.absenceCount)}
-                                                        size="small"
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    {warning.lastAbsenceDate
-                                                        ? format(new Date(warning.lastAbsenceDate), 'MMM dd, yyyy')
-                                                        : 'N/A'}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    {warning.emailSent ? (
-                                                        <Chip
-                                                            icon={<Email />}
-                                                            label="Yes"
-                                                            color="success"
-                                                            size="small"
-                                                        />
-                                                    ) : (
-                                                        <Chip
-                                                            icon={<EmailOutlined />}
-                                                            label="No"
-                                                            color="default"
-                                                            size="small"
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </>
-                )}
+                                                <Warning />
+                                            </IconButton>
+                                        </Tooltip>
 
-                {warnings.length > 0 && (
-                    <Box mt={2}>
-                        <Typography variant="body2" color="textSecondary">
-                            Showing {warnings.length} warning(s)
-                        </Typography>
-                    </Box>
+                                        <CardContent sx={{ flex: 1, textAlign: 'center', pt: 4 }}>
+                                            <Box display="flex" justifyContent="center" mb={2}>
+                                                <StudentPhotoAvatar
+                                                    photoUrl={student.photoUrl}
+                                                    name={student.name}
+                                                    sx={{ width: 100, height: 100 }}
+                                                />
+                                            </Box>
+
+                                            <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                                {student.name}
+                                            </Typography>
+                                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                                {student.studentNumber}
+                                            </Typography>
+
+                                            <Box mt={2}>
+                                                <Chip
+                                                    label={`${student.absenceCount} Absences`}
+                                                    color="error"
+                                                    sx={{ fontWeight: 'bold' }}
+                                                />
+                                            </Box>
+                                        </CardContent>
+
+                                        <Box p={2} pt={0}>
+                                            <Button
+                                                variant="contained"
+                                                color="warning"
+                                                fullWidth
+                                                startIcon={<Send />}
+                                                onClick={() => handleOpenWarning(student)}
+                                            >
+                                                Issue Warning
+                                            </Button>
+                                        </Box>
+                                    </Card>
+                                </Grid>
+                            ))
+                        )}
+                    </Grid>
                 )}
             </Container>
+
+            {/* Warning Dialog */}
+            <Dialog open={warningDialogOpen} onClose={() => setWarningDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Warning color="warning" />
+                    Issue Warning
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            Student: <strong>{selectedStudent?.name}</strong>
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" gutterBottom>
+                            Total Absences: {selectedStudent?.absenceCount}
+                        </Typography>
+
+                        <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
+                            <InputLabel>Warning Type</InputLabel>
+                            <Select
+                                value={warningType}
+                                label="Warning Type"
+                                onChange={(e) => setWarningType(e.target.value)}
+                            >
+                                <MenuItem value="Low Attendance">Low Attendance</MenuItem>
+                                <MenuItem value="Misconduct">Misconduct</MenuItem>
+                                <MenuItem value="Late Submission">Late Submission</MenuItem>
+                                <MenuItem value="Other">Other</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        {/* Course Selection (Optional but good) */}
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                            <InputLabel>Course Context</InputLabel>
+                            <Select
+                                value={courses.length > 0 ? courses[0].id : ''} // Defaulting for now
+                                label="Course Context"
+                                disabled
+                            >
+                                {courses.map(c => (
+                                    <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                            label="Warning Message"
+                            value={warningMessage}
+                            onChange={(e) => setWarningMessage(e.target.value)}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setWarningDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={handleSendWarning}
+                        variant="contained"
+                        color="warning"
+                        startIcon={sendingWarning ? <CircularProgress size={20} /> : <Send />}
+                        disabled={sendingWarning}
+                    >
+                        Send Warning
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+            >
+                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

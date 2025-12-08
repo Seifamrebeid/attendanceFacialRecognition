@@ -46,11 +46,13 @@ const AdminDashboard = () => {
                 getAllWarnings()
             ]);
 
+            const uniqueStudentsWithWarnings = new Set(warnings.map(w => w.studentId)).size;
+
             setStats({
                 totalCourses: courses.length,
                 totalStudents: students.length,
                 totalWarnings: warnings.length,
-                highRiskStudents: warnings.filter(w => w.absenceCount >= 5).length
+                highRiskStudents: uniqueStudentsWithWarnings
             });
         } catch (error) {
             console.error('Error loading dashboard data:', error);
@@ -135,11 +137,11 @@ const AdminDashboard = () => {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <StatCard
-                            title="High Risk Students"
+                            title="Students with Warnings"
                             value={stats.highRiskStudents}
                             icon={<TrendingUp />}
                             color="error"
-                            onClick={() => navigate('/admin/predictions')}
+                            onClick={() => navigate('/admin/warnings')}
                         />
                     </Grid>
                 </Grid>
@@ -155,9 +157,17 @@ const AdminDashboard = () => {
                                     <Button
                                         variant="contained"
                                         fullWidth
+                                        onClick={() => navigate('/admin/reports')}
+                                        color="primary"
+                                    >
+                                        View Attendance Reports
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        fullWidth
                                         onClick={() => navigate('/admin/attendance')}
                                     >
-                                        View Attendance Records
+                                        Manage Weekly Attendance
                                     </Button>
                                     <Button
                                         variant="outlined"

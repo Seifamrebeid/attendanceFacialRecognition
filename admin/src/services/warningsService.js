@@ -1,171 +1,117 @@
-// Warnings Service
-// Handles all Firestore operations for warnings collection
-
-import {
-    collection,
-    addDoc,
-    getDocs,
-    doc,
-    updateDoc,
-    query,
-    where,
-    orderBy,
-    getDoc
-} from 'firebase/firestore';
-import { db } from '../firebase/firebaseConfig';
-import { countAbsences } from './attendanceService';
-
-const COLLECTION_NAME = 'warnings';
+import { db } from '../config/firebase';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, where } from 'firebase/firestore';
 
 /**
- * Get all warnings
- * @returns {Promise<Array>} Array of warning objects
- */
-export const getAllWarnings = async () => {
-    try {
-        const warningsRef = collection(db, COLLECTION_NAME);
-        const q = query(warningsRef, orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-
-        const warnings = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            warnings.push({
-                id: doc.id,
-                ...data,
-                lastAbsenceDate: data.lastAbsenceDate?.toDate?.() || data.lastAbsenceDate,
-                createdAt: data.createdAt?.toDate?.() || data.createdAt
-            });
-        });
-
-        return warnings;
-    } catch (error) {
-        console.error('Error fetching warnings:', error);
-        throw error;
-    }
-};
-
-/**
- * Get warnings for a specific course
- * @param {string} courseId - Course ID
- * @returns {Promise<Array>} Array of warnings for the course
- */
-export const getWarningsByCourse = async (courseId) => {
-    try {
-        const warningsRef = collection(db, COLLECTION_NAME);
-        const q = query(
-            warningsRef,
-            where('courseId', '==', courseId),
-            orderBy('absenceCount', 'desc')
-        );
-        const querySnapshot = await getDocs(q);
-
-        const warnings = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            warnings.push({
-                id: doc.id,
-                ...data,
-                lastAbsenceDate: data.lastAbsenceDate?.toDate?.() || data.lastAbsenceDate,
-                createdAt: data.createdAt?.toDate?.() || data.createdAt
-            });
-        });
-
-        return warnings;
-    } catch (error) {
-        console.error('Error fetching warnings by course:', error);
-        throw error;
-    }
-};
-
-/**
- * Create a new warning
- * @param {Object} warningData - Warning data
- * @returns {Promise<string>} ID of created warning
+ * Creates a new warning for a student.
+ * 
+ * @param {Object} warningData - The warning details.
+ * @param {string} warningData.courseId - ID of the course.
+ * @param {string} warningData.courseName - Name of the course.
+ * @param {string} warningData.studentId - ID of the student.
+ * @param {string} warningData.studentName - Name of the student.
+ * @param {string} warningData.studentEmail - Email of the student (required for notification).
+ * @param {string} warningData.warningType - Type of warning (e.g., 'Low Attendance', 'Misconduct').
+ * @param {string} warningData.message - The detailed warning message.
+ * @param {string} warningData.createdBy - Name or ID of the person creating the warning.
+ * @returns {Promise<string>} - The ID of the created warning document.
  */
 export const createWarning = async (warningData) => {
     try {
-        const warningsRef = collection(db, COLLECTION_NAME);
-        const docRef = await addDoc(warningsRef, {
-            ...warningData,
-            emailSent: false,
-            createdAt: new Date()
-        });
+        const {
+            courseId,
+            courseName,
+            studentId,
+            studentName,
+            studentEmail,
+            warningType,
+            message,
+            createdBy
+        } = warningData;
 
-        return docRef.id;
-    } catch (error) {
-        console.error('Error creating warning:', error);
-        throw error;
-    }
-};
-
-/**
- * Mark warning email as sent
- * @param {string} warningId - Warning ID
- * @returns {Promise<void>}
- */
-export const markEmailSent = async (warningId) => {
-    try {
-        const warningRef = doc(db, COLLECTION_NAME, warningId);
-        await updateDoc(warningRef, {
-            emailSent: true,
-            emailSentAt: new Date()
-        });
-    } catch (error) {
-        console.error('Error marking email as sent:', error);
-        throw error;
-    }
-};
-
-/**
- * Check if a student needs a warning and create one if necessary
- * @param {string} studentId - Student ID
- * @param {string} courseId - Course ID
- * @param {Date} lastAbsenceDate - Date of last absence
- * @returns {Promise<Object|null>} Created warning or null if not needed
- */
-export const checkAndCreateWarning = async (studentId, courseId, lastAbsenceDate) => {
-    try {
-        // Count total absences
-        const absenceCount = await countAbsences(studentId, courseId);
-
-        // Check if warning threshold is reached (3 absences)
-        if (absenceCount >= 3) {
-            // Check if warning already exists for this student and course
-            const warningsRef = collection(db, COLLECTION_NAME);
-            const q = query(
-                warningsRef,
-                where('studentId', '==', studentId),
-                where('courseId', '==', courseId)
-            );
-            const existingWarnings = await getDocs(q);
-
-            if (existingWarnings.empty) {
-                // Create new warning
-                const warningId = await createWarning({
-                    studentId,
-                    courseId,
-                    absenceCount,
-                    lastAbsenceDate
-                });
-
-                return { id: warningId, absenceCount, isNew: true };
-            } else {
-                // Update existing warning
-                const existingWarning = existingWarnings.docs[0];
-                await updateDoc(doc(db, COLLECTION_NAME, existingWarning.id), {
-                    absenceCount,
-                    lastAbsenceDate,
-                    updatedAt: new Date()
-                });
-
-                return { id: existingWarning.id, absenceCount, isNew: false };
-            }
+        if (!studentEmail) {
+            console.warn('⚠️ Creating warning without student email. Notification will not be sent.');
         }
 
-        return null;
+        const warningRef = collection(db, 'warnings');
+        const docRef = await addDoc(warningRef, {
+            courseId,
+            courseName,
+            studentId,
+            studentName,
+            studentEmail: studentEmail || null,
+            warningType,
+            message,
+            createdBy,
+            createdAt: serverTimestamp(),
+            status: 'Sent', // Initial status
+            emailSent: false // Will be updated by Cloud Function
+        });
+
+        console.log(`✅ Warning created with ID: ${docRef.id}`);
+        return docRef.id;
     } catch (error) {
-        console.error('Error checking/creating warning:', error);
+        console.error('❌ Error creating warning:', error);
         throw error;
+    }
+};
+
+/**
+ * Retrieves all warnings from the database.
+ * @returns {Promise<Array>} Array of warning objects.
+ */
+export const getAllWarnings = async () => {
+    try {
+        const warningsRef = collection(db, 'warnings');
+        const q = query(warningsRef, orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error('❌ Error fetching all warnings:', error);
+        // If the index is missing, firestore might throw.
+        // Fallback to client-side sorting or just return unsorted if needed, 
+        // but usually we want to catch this.
+        return [];
+    }
+};
+
+/**
+ * Retrieves warnings for a specific student.
+ * @param {string} studentId 
+ * @returns {Promise<Array>}
+ */
+export const getStudentWarnings = async (studentId) => {
+    try {
+        const warningsRef = collection(db, 'warnings');
+        const q = query(
+            warningsRef,
+            where('studentId', '==', studentId),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error(`❌ Error fetching warnings for student ${studentId}:`, error);
+        return [];
+    }
+};
+
+/**
+ * Retrieves warnings for a specific course.
+ * @param {string} courseId 
+ * @returns {Promise<Array>}
+ */
+export const getWarningsByCourse = async (courseId) => {
+    try {
+        const warningsRef = collection(db, 'warnings');
+        const q = query(
+            warningsRef,
+            where('courseId', '==', courseId),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error(`❌ Error fetching warnings for course ${courseId}:`, error);
+        return [];
     }
 };

@@ -25,7 +25,8 @@ import {
     Analytics,
     PsychologyAlt,
     Logout,
-    Menu as MenuIcon
+    Menu as MenuIcon,
+    Assessment
 } from '@mui/icons-material';
 
 const Navbar = () => {
@@ -52,6 +53,7 @@ const Navbar = () => {
         { label: 'Courses', path: '/admin/courses', icon: <School /> },
         { label: 'Students', path: '/admin/students', icon: <People /> },
         { label: 'Attendance', path: '/admin/attendance', icon: <EventNote /> },
+        { label: 'Reports', path: '/admin/reports', icon: <Assessment /> },
         { label: 'Warnings', path: '/admin/warnings', icon: <Warning /> },
         { label: 'Analytics', path: '/admin/analytics', icon: <Analytics /> },
         { label: 'Predictions', path: '/admin/predictions', icon: <PsychologyAlt /> }
