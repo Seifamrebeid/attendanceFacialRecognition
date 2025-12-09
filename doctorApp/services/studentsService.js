@@ -125,6 +125,7 @@ export const getAllStudents = async () => {
     students.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
 
+
     return students;
   } catch (error) {
     console.error("Error fetching students from CSV:", error);
