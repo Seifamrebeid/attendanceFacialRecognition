@@ -117,14 +117,13 @@ export const getAllStudents = async () => {
     console.log("Fetching students from local CSV...");
 
     // Import CSV data as a JS module
-    const csvText = require('../datasdt.js').default;
+    const csvText = require("../datasdt.js").default;
 
     const students = parseCSV(csvText);
 
     // Sort by name
     students.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-    console.log(`✅ Fetched ${students.length} students from local CSV`);
     return students;
   } catch (error) {
     console.error("Error fetching students from CSV:", error);
@@ -140,6 +139,21 @@ export const getAllStudents = async () => {
 export const getStudentsByCourse = async (courseId) => {
   try {
     const students = await getAllStudents();
+
+    // Check if any students have enrollment data
+    const hasEnrollmentData = students.some(
+      (student) => student.enrolledCourses && student.enrolledCourses.length > 0
+    );
+
+    // If no enrollment data exists, return all students
+    // Otherwise, filter by enrolled courses
+    if (!hasEnrollmentData) {
+      console.log(
+        `No enrollment data found. Returning all ${students.length} students for course ${courseId}`
+      );
+      return students;
+    }
+
     return students.filter(
       (student) =>
         student.enrolledCourses && student.enrolledCourses.includes(courseId)
