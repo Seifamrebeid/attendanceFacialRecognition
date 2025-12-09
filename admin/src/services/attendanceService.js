@@ -68,3 +68,78 @@ export const getHighRiskStudents = async (threshold = 3) => {
         return [];
     }
 };
+
+/**
+ * Get arrival times for a specific course
+ * @param {string} courseId - Course ID
+ * @returns {Promise<Array>} Array of Date objects representing arrival times
+ */
+export const getArrivalTimes = async (courseId) => {
+    try {
+        const attendanceRef = collection(db, 'attendance');
+        const q = query(attendanceRef, where('courseId', '==', courseId));
+        const snapshot = await getDocs(q);
+
+        const arrivalTimes = [];
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            // Only get JOIN actions with timestamps
+            if (data.action === 'JOIN' && data.timestamp) {
+                const time = typeof data.timestamp === 'string' 
+                    ? new Date(data.timestamp)
+                    : data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+                arrivalTimes.push(time);
+            }
+        });
+
+        return arrivalTimes;
+    } catch (error) {
+        console.error('Error fetching arrival times:', error);
+        return [];
+    }
+};
+
+/**
+ * Get attendance records for a specific student
+ * @param {string} studentId - Student ID or student number
+ * @param {string} courseId - Course ID (optional)
+ * @returns {Promise<Array>} Array of attendance records for the student
+ */
+export const getStudentAttendance = async (studentId, courseId = null) => {
+    try {
+        const attendanceRef = collection(db, 'attendance');
+        let q;
+
+        if (courseId) {
+            q = query(attendanceRef, where('courseId', '==', courseId));
+        } else {
+            q = attendanceRef;
+        }
+
+        const snapshot = await getDocs(q);
+        const records = [];
+
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            // Match by studentName containing the studentId
+            if (data.studentName && data.studentName.includes(studentId)) {
+                records.push({
+                    id: doc.id,
+                    ...data
+                });
+            }
+        });
+
+        // Sort by timestamp descending
+        records.sort((a, b) => {
+            const timeA = new Date(a.timestamp || a.createdAt);
+            const timeB = new Date(b.timestamp || b.createdAt);
+            return timeB - timeA;
+        });
+
+        return records;
+    } catch (error) {
+        console.error('Error fetching student attendance:', error);
+        return [];
+    }
+};
