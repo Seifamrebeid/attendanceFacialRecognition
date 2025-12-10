@@ -51,18 +51,19 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
         if not current_id and _tmp_id:
             current_id = _tmp_id
 
-    # ---------- COLORS (AAST BRIGHT BLUE PALETTE, BGR) ----------
-    # Background & cards (from hex: #0B1E39, #132A4A)
-    BG_DARK      = (57, 30, 11)    # deep blue
-    CARD_BG      = (74, 42, 19)    # navy blue
-    # Borders & accents (from hex: #1B6FFF, #27C3FF, #00E4A8, etc.)
-    BORDER_SOFT  = (255, 111, 27)  # bright AAST blue
-    TITLE_BLUE   = (255, 195, 39)  # sky blue
-    SKY_BLUE     = (255, 195, 39)  # same as title
-    TURQ_GLOW    = (255, 242, 0)   # turquoise glow
-    MINT_GREEN   = (168, 228, 0)   # success / active
-    AMBER        = (94, 196, 255)  # warning
-    ORANGE_SOFT  = (97, 111, 255)  # exits / alerts
+    # ---------- COLORS (AAST BLUE PALETTE, BGR) ----------
+    BG_DARK      = (160, 60, 20)   # deep background
+    CARD_BG      = (120, 50, 20)   # panel background
+
+    BORDER_SOFT  = (200, 150, 60)  # cyan/blue border
+    TITLE_BLUE   = (220, 200, 100)
+    SKY_BLUE     = (210, 190, 90)
+    TURQ_GLOW    = (210, 230, 160)
+    MINT_GREEN   = (200, 230, 170)
+
+    AMBER        = (190, 210, 200)
+    ORANGE_SOFT  = (180, 200, 210)
+
     TEXT_MAIN    = (240, 246, 255)
     TEXT_MUTED   = (185, 192, 210)
 
@@ -88,39 +89,40 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     logo_img = globals().get("AAST_LOGO", None)
 
     # ==============================
-    # TOP TITLE BAR
+    # TOP TITLE BAR (dark navy)
     # ==============================
-    cv2.rectangle(canvas, (0, 0), (1920, 70), (40, 40, 70), -1)
+    # Royal navy: hex #0F2745 -> BGR (69, 39, 15)
+    cv2.rectangle(canvas, (0, 0), (1920, 70), (69, 39, 15), -1)
 
-    # place logo on top-left if available
+    # place logo on top-left if available (bigger now)
     if logo_img is not None:
         try:
             logo_h, logo_w = logo_img.shape[:2]
-            target_h = 50
+            target_h = 70   # was 50, now bigger
             scale = target_h / float(logo_h)
             target_w = int(logo_w * scale)
             logo_resized = cv2.resize(logo_img, (target_w, target_h))
             if logo_resized.shape[2] == 4:
                 alpha = logo_resized[:, :, 3] / 255.0
                 rgb = logo_resized[:, :, :3]
-                roi = canvas[10:10+target_h, 30:30+target_w]
+                roi = canvas[5:5+target_h, 20:20+target_w]
                 for c in range(3):
                     roi[:, :, c] = (alpha * rgb[:, :, c] +
                                     (1 - alpha) * roi[:, :, c])
-                canvas[10:10+target_h, 30:30+target_w] = roi
+                canvas[5:5+target_h, 20:20+target_w] = roi
             else:
-                canvas[10:10+target_h, 30:30+target_w] = logo_resized
+                canvas[5:5+target_h, 20:20+target_w] = logo_resized
         except Exception:
             pass
 
-    draw_text(canvas, "AAST Smart Attendance System", 120, 45, 1.0, TITLE_BLUE, 2)
+    draw_text(canvas, "AAST Smart Attendance System", 140, 45, 1.0, TITLE_BLUE, 2)
 
     # Quality indicator on top-right
     if quality_score > 0:
         qx1, qy1 = 1350, 25
         bar_w = int(190 * min(1.0, max(0.0, quality_score)))
         cv2.rectangle(canvas, (qx1 - 10, qy1 - 20),
-                      (qx1 + 230, qy1 + 15), (35, 40, 70), -1)
+                      (qx1 + 230, qy1 + 15), (120, 60, 30), -1)
         cv2.rectangle(canvas, (qx1 - 10, qy1 - 20),
                       (qx1 + 230, qy1 + 15), BORDER_SOFT, 1)
         if quality_score >= 0.8:
@@ -165,10 +167,10 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
                   TURQ_GLOW, 1)
 
     # LIVE label
-    label_bg = (60, 80, 110)
+    label_bg = (110, 80, 40)
     cv2.rectangle(canvas, (cam_x, cam_y - 38),
                   (cam_x + 240, cam_y - 10), label_bg, -1)
-    dot_color = MINT_GREEN if int(datetime.now().timestamp() * 2) % 2 == 0 else (60, 110, 90)
+    dot_color = MINT_GREEN if int(datetime.now().timestamp() * 2) % 2 == 0 else (80, 120, 70)
     cv2.circle(canvas, (cam_x + 20, cam_y - 24), 8, dot_color, -1)
     draw_text(canvas, "LIVE CAMERA FEED", cam_x + 40, cam_y - 20, 0.7, TEXT_MAIN, 2)
 
@@ -176,7 +178,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     info_y = cam_y + cam_h + 40
     cv2.rectangle(canvas, (cam_x - 10, info_y - 30),
                   (cam_x + cam_w + 10, info_y + 10),
-                  (30, 35, 60), -1)
+                  (130, 70, 30), -1)
     cv2.rectangle(canvas, (cam_x - 10, info_y - 30),
                   (cam_x + cam_w + 10, info_y + 10),
                   BORDER_SOFT, 1)
@@ -225,9 +227,9 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     pill_y1 = header_y + 22
     cv2.rectangle(canvas, (pill_x1, pill_y1),
                   (pill_x1 + 160, pill_y1 + 28),
-                  (35, 60, 80), -1)
+                  (150, 80, 30), -1)
     cv2.circle(canvas, (pill_x1 + 18, pill_y1 + 14), 6, MINT_GREEN, -1)
-    draw_text(canvas, "Recording \\u2022 Live", pill_x1 + 32, pill_y1 + 19, 0.5, TEXT_MAIN, 1)
+    draw_text(canvas, "Recording Live", pill_x1 + 32, pill_y1 + 19, 0.5, TEXT_MAIN, 1)
 
     # --- CURRENT PERSON CARD ---
     cp_y = header_y + header_h + 18
@@ -253,7 +255,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
         bar_y1 = cp_y + 140
         cv2.rectangle(canvas, (bar_x1, bar_y1),
                       (bar_x2, bar_y1 + 12),
-                      (30, 35, 65), -1)
+                      (110, 60, 30), -1)
         fill_w = int((bar_x2 - bar_x1) * (mp / 100.0))
         if fill_w > 0:
             cv2.rectangle(canvas, (bar_x1, bar_y1),
@@ -273,7 +275,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
                   CARD_BG, -1)
     cv2.rectangle(canvas, (panel_x, inside_y),
                   (panel_x + panel_w, inside_y + inside_h),
-                  (90, 190, 150), 1)
+                  (160, 200, 240), 1)
     draw_text(canvas, f"People Inside ({len(current_sessions)})",
               panel_x + 20, inside_y + 32, 0.7, MINT_GREEN, 2)
 
@@ -305,7 +307,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
                   CARD_BG, -1)
     cv2.rectangle(canvas, (panel_x, act_y),
                   (panel_x + panel_w, act_y + act_h),
-                  (120, 160, 230), 1)
+                  (180, 210, 250), 1)
     draw_text(canvas, "Recent Activity", panel_x + 20, act_y + 32, 0.7, TITLE_BLUE, 2)
 
     row_y = act_y + 64
@@ -336,7 +338,7 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
                   CARD_BG, -1)
     cv2.rectangle(canvas, (panel_x, stats_y),
                   (panel_x + panel_w, stats_y + stats_h),
-                  (200, 210, 110), 1)
+                  (190, 220, 250), 1)
     draw_text(canvas, "Today\'s Statistics", panel_x + 20, stats_y + 32, 0.7, AMBER, 2)
 
     total_entries = len(attendance_log)
@@ -349,8 +351,8 @@ def create_unified_fullscreen_interface(frame, attendance_log, current_sessions,
     draw_text(canvas, f"Returns: {returns}", panel_x + 320, stats_y + 68, 0.55, SKY_BLUE, 1)
     draw_text(canvas, f"Exits: {lefts}", panel_x + 500, stats_y + 68, 0.55, ORANGE_SOFT, 1)
 
-    # --- BOTTOM CONTROLS STRIP ---
-    cv2.rectangle(canvas, (0, 1040), (1920, 1080), (25, 25, 45), -1)
+    # --- BOTTOM CONTROLS STRIP (dark navy) ---
+    cv2.rectangle(canvas, (0, 1040), (1920, 1080), (69, 39, 15), -1)
     draw_text(canvas,
               "Controls: Q=Quit | A=Summary | S=Sessions | D=Toggle Mode | SPACE=Manual Capture",
               40, 1068, 0.5, TEXT_MUTED, 1)
@@ -377,20 +379,20 @@ def create_dashboard_window(attendance_log, current_sessions):
             return name, ""
 
     dash = np.zeros((600, 900, 3), dtype=np.uint8)
-    dash[:] = (35, 45, 65)
+    dash[:] = (160, 60, 20)
 
     def draw_text(img, s, x, y, scale, color, thick=2):
         cv2.putText(img, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
                     scale, color, thick, cv2.LINE_AA)
 
-    SKY_BLUE     = (255, 195, 39)
+    SKY_BLUE     = (210, 190, 90)
     TEXT_MAIN    = (240, 246, 255)
     TEXT_MUTED   = (185, 192, 210)
-    MINT_GREEN   = (168, 228, 0)
-    ORANGE_SOFT  = (97, 111, 255)
+    MINT_GREEN   = (200, 230, 170)
+    ORANGE_SOFT  = (180, 200, 210)
 
     draw_text(dash, "AAST Attendance Dashboard", 40, 40, 1.0, SKY_BLUE, 2)
-    cv2.line(dash, (40, 55), (860, 55), (120, 140, 210), 1)
+    cv2.line(dash, (40, 55), (860, 55), (160, 200, 240), 1)
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     draw_text(dash, f"Time: {now}", 40, 80, 0.6, TEXT_MUTED, 1)
