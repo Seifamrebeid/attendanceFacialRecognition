@@ -40,7 +40,7 @@ def detect_face_in_optimal_zone(boxes, frame_shape, stability_threshold=0.02):
         
         # Check if face is in optimal zone
         in_zone = (zone_left <= face_center_x <= zone_right and 
-                  zone_top <= face_center_y <= zone_bottom)
+                   zone_top <= face_center_y <= zone_bottom)
         
         # Check face size (should be substantial but not too close)
         optimal_size = 8000 <= face_area <= 50000
@@ -142,11 +142,25 @@ def draw_smart_guidance(frame, boxes, optimal_face, quality_score):
         
         # Enhanced text with percentage and status
         cv2.putText(frame, f"Quality: {quality_score:.0%} - {status_text}", (bar_x, bar_y + 10), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA)
 
 def cosine_similarity(a, b):
     """Calculate cosine similarity between two vectors"""
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def similarity_to_match_percent(similarity):
+    """Convert cosine similarity (0–1) to human-friendly percent 0–100"""
+    if similarity is None:
+        return 0
+    try:
+        s = float(similarity)
+    except Exception:
+        return 0
+    if s < 0.0:
+        s = 0.0
+    if s > 1.0:
+        s = 1.0
+    return int(s * 100)
 
 def find_best_match(face_encoding, threshold=0.45):
     """Find the best matching face from known encodings"""
@@ -187,12 +201,37 @@ def calculate_duration(start_time, end_time):
     return duration.total_seconds() / 60
 
 def log_attendance(name, similarity, action):
-    """Log attendance with enhanced tracking and REAL-TIME Firestore write"""
+    """Log attendance with enhanced tracking and REAL-TIME Firestore write.
+       Also updates CURRENT_RECOGNITION global for the UI and stores a percent."""
     global session_counter
     
     timestamp = datetime.now()
     duration_minutes = None
     session_id = None
+
+    # Convert similarity (0–1) to percent for UI
+    match_percent = similarity_to_match_percent(similarity)
+    
+    # Try to split "Abdullah_Nagy_Abdullah_231004881" → display name + ID
+    display_name = str(name)
+    student_id = ""
+    if isinstance(name, str):
+        parts = name.split("_")
+        if len(parts) > 1 and parts[-1].isdigit():
+            student_id = parts[-1]
+            display_name = " ".join(parts[:-1])
+    
+    # Update global CURRENT_RECOGNITION for the right-side panel
+    try:
+        globals()["CURRENT_RECOGNITION"] = {
+            "name": display_name,
+            "id": student_id,
+            "match_percent": match_percent,
+            "live_face": None,   # can be replaced later with cropped frame
+            "ref_face": None     # can be replaced later with DB photo
+        }
+    except Exception:
+        pass
     
     if action == "JOIN":
         current_sessions[name] = {
@@ -223,7 +262,7 @@ def log_attendance(name, similarity, action):
         duration_str = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
         print("[LEFT] {} LEFT at {} (Duration: {})".format(name, timestamp.strftime("%H:%M:%S"), duration_str))
     
-    # Add to local attendance log
+    # Add to local attendance log (now with match_percent)
     attendance_log.append({
         "name": name,
         "action": action,
@@ -231,6 +270,7 @@ def log_attendance(name, similarity, action):
         "date": timestamp.strftime("%Y-%m-%d"),
         "time": timestamp.strftime("%H:%M:%S"),
         "similarity": round(similarity, 2),
+        "match_percent": match_percent,
         "duration_minutes": round(duration_minutes, 1) if duration_minutes else None,
         "session_id": session_id
     })

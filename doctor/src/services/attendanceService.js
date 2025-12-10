@@ -109,3 +109,64 @@ export const getAttendanceByWeek = async (courseId, weekNumber) => {
     throw error;
   }
 };
+
+/**
+ * Get high-risk students (with N or more absences) in a course
+ * @param {number} absenceThreshold - Minimum number of absences to be flagged
+ * @param {string} courseId - Course ID
+ * @returns {Promise<Array>} Array of high-risk students with absence count
+ */
+export const getHighRiskStudents = async (absenceThreshold = 3, courseId) => {
+  try {
+    // Get all attendance records for the course
+    const attendanceRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      attendanceRef,
+      where("courseId", "==", courseId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const studentAbsences = {};
+
+    // Count absences per student
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      const studentId = data.studentId || data.studentName;
+      const status = data.action?.toUpperCase() || data.status?.toUpperCase() || 'PRESENT';
+
+      if (status === 'LEFT' || status === 'ABSENT') {
+        studentAbsences[studentId] = (studentAbsences[studentId] || 0) + 1;
+      }
+    });
+
+    // Filter students who meet the threshold
+    const atRiskStudentIds = Object.keys(studentAbsences).filter(
+      (studentId) => studentAbsences[studentId] >= absenceThreshold
+    );
+
+    // Import students to get full info
+    const { getAllStudents } = await import('./studentsService');
+    const allStudents = await getAllStudents();
+
+    // Map high-risk students with their data
+    const atRiskStudents = allStudents
+      .filter((student) =>
+        atRiskStudentIds.some(
+          (id) => id.includes(student.studentNumber) || id.includes(student.id)
+        )
+      )
+      .map((student) => ({
+        ...student,
+        absenceCount: Math.max(
+          ...atRiskStudentIds
+            .filter((id) => id.includes(student.studentNumber) || id.includes(student.id))
+            .map((id) => studentAbsences[id] || 0)
+        )
+      }));
+
+    return atRiskStudents;
+  } catch (error) {
+    console.error("Error fetching high-risk students:", error);
+    throw error;
+  }
+};

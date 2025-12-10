@@ -55,6 +55,30 @@ const Dashboard = () => {
         >
           Weekly Stats
         </Link>
+        <Link
+          to="/dashboard/attendance"
+          className={
+            isActive("/dashboard/attendance") ? "nav-link active" : "nav-link"
+          }
+        >
+          Attendance
+        </Link>
+        <Link
+          to="/dashboard/reports"
+          className={
+            isActive("/dashboard/reports") ? "nav-link active" : "nav-link"
+          }
+        >
+          Reports
+        </Link>
+        <Link
+          to="/dashboard/warnings"
+          className={
+            isActive("/dashboard/warnings") ? "nav-link active" : "nav-link"
+          }
+        >
+          Warnings
+        </Link>
       </nav>
 
       <main className="dashboard-content">

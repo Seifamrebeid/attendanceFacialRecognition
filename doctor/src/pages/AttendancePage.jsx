@@ -29,9 +29,8 @@ import {
     Divider
 } from '@mui/material';
 import { Search, CheckCircle, Cancel, Warning, Send } from '@mui/icons-material';
-import Navbar from '../components/Navbar';
-import StudentPhotoAvatar from '../components/StudentPhotoAvatar';
-import { getAllCourses } from '../services/coursesService';
+import { useCourse } from '../context/CourseContext';
+import StudentPhoto from '../components/StudentPhoto';
 import { getAllStudents } from '../services/studentsService';
 import { createWarning } from '../services/warningsService';
 import { db } from '../config/firebase';
@@ -39,9 +38,8 @@ import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } 
 import { format } from 'date-fns';
 
 const AttendancePage = () => {
-    const [courses, setCourses] = useState([]);
+    const { selectedCourse } = useCourse();
     const [students, setStudents] = useState([]);
-    const [selectedCourse, setSelectedCourse] = useState('');
     const [selectedWeek, setSelectedWeek] = useState(1);
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -58,27 +56,15 @@ const AttendancePage = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     useEffect(() => {
-        loadCourses();
         loadStudents();
     }, []);
 
     useEffect(() => {
-        if (selectedCourse && selectedWeek) {
+        if (selectedCourse && selectedWeek && students.length > 0) {
             loadWeeklyAttendance();
         }
-    }, [selectedCourse, selectedWeek]);
-
-    const loadCourses = async () => {
-        try {
-            const data = await getAllCourses();
-            setCourses(data);
-            if (data.length > 0) {
-                setSelectedCourse(data[0].id);
-            }
-        } catch (err) {
-            setError('Failed to load courses');
-        }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCourse, selectedWeek, students]);
 
     const loadStudents = async () => {
         try {
@@ -100,7 +86,7 @@ const AttendancePage = () => {
             const attendanceRef = collection(db, 'attendance');
             const q = query(
                 attendanceRef,
-                where('courseId', '==', selectedCourse),
+                where('courseId', '==', selectedCourse.id),
                 where('weekNumber', '==', selectedWeek)
             );
 
@@ -115,6 +101,7 @@ const AttendancePage = () => {
             });
 
             console.log(`Found ${records.length} attendance records for week ${selectedWeek}`);
+            console.log(`Total students: ${students.length}`);
 
             const attendanceData = students.map(student => {
                 const record = records.find(r => {
@@ -127,24 +114,33 @@ const AttendancePage = () => {
                 return {
                     student,
                     record: record || null,
-                    status: record ? (record.status || record.action?.toLowerCase() || 'present') : null, // null = not marked
+                    status: record ? (record.status || record.action?.toLowerCase() || 'present') : null,
                     arrivalTime: record?.time || record?.arrivalTime || null,
                     confidence: record?.similarity || record?.confidenceScore || null,
-                    weekCount: 0 // TODO: Calculate total weeks present
+                    weekCount: 0
                 };
             });
 
+            console.log(`Prepared attendance data for ${attendanceData.length} students`);
             setAttendanceRecords(attendanceData);
         } catch (err) {
             console.error('Error loading attendance:', err);
-            setError(`Failed to load attendance: ${err.message}`);
+            // Still show students even if query fails
+            const attendanceData = students.map(student => ({
+                student,
+                record: null,
+                status: null,
+                arrivalTime: null,
+                confidence: null,
+                weekCount: 0
+            }));
+            setAttendanceRecords(attendanceData);
         } finally {
             setLoading(false);
         }
     };
 
     const handleStatusChange = async (studentId, newStatus) => {
-        // Optimistically update UI
         const updatedRecords = attendanceRecords.map(record => {
             if (record.student.id === studentId) {
                 return { ...record, status: newStatus };
@@ -153,22 +149,18 @@ const AttendancePage = () => {
         });
         setAttendanceRecords(updatedRecords);
 
-        // Mark as saving
         setSavingStudents(prev => new Set(prev).add(studentId));
 
         try {
-            const course = courses.find(c => c.id === selectedCourse);
             const attendanceData = attendanceRecords.find(a => a.student.id === studentId);
             const { student, record } = attendanceData;
 
-            // If status is null, delete the record (clear/unmark)
             if (newStatus === null) {
                 if (record) {
                     const recordRef = doc(db, 'attendance', record.id);
                     await deleteDoc(recordRef);
                     console.log(`✅ Cleared attendance for ${student.name}`);
 
-                    // Update local state to remove record
                     const updatedWithoutRecord = attendanceRecords.map(r => {
                         if (r.student.id === studentId) {
                             return {
@@ -181,11 +173,10 @@ const AttendancePage = () => {
                     });
                     setAttendanceRecords(updatedWithoutRecord);
                 }
-                return; // Exit early
+                return;
             }
 
             if (record) {
-                // Update existing record
                 const recordRef = doc(db, 'attendance', record.id);
                 await updateDoc(recordRef, {
                     action: newStatus === 'present' ? 'JOIN' : newStatus === 'late' ? 'LATE' : 'LEFT',
@@ -194,43 +185,35 @@ const AttendancePage = () => {
                 });
                 console.log(`✅ Updated ${student.name} to ${newStatus}`);
             } else {
-                // Create new record matching Python facial recognition format
                 const now = new Date();
                 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const timestampStr = now.toISOString();
 
                 const newDoc = await addDoc(collection(db, 'attendance'), {
-                    // Core fields
                     studentName: `${student.name.replace(/\s+/g, '_')}_${student.studentNumber}`,
-                    courseId: selectedCourse,
-                    courseCode: course?.courseCode || '',
-                    courseName: course?.name || course?.courseName || '',
+                    courseId: selectedCourse.id,
+                    courseCode: selectedCourse?.courseCode || '',
+                    courseName: selectedCourse?.name || selectedCourse?.courseName || '',
                     weekNumber: selectedWeek,
 
-                    // Status/Action mapping
                     action: newStatus === 'present' ? 'JOIN' : newStatus === 'late' ? 'LATE' : 'LEFT',
 
-                    // Date/Time fields
                     date: format(now, 'yyyy-MM-dd'),
                     time: format(now, 'HH:mm:ss'),
                     timestamp: timestampStr,
                     createdAt: timestampStr,
                     dayOfWeek: dayNames[now.getDay()],
 
-                    // Additional course fields (defaults if not available)
-                    department: course?.department || 'N/A',
-                    lecturerName: course?.lecturerName || course?.instructor || 'N/A',
-                    semester: course?.semester || 'Fall 2025',
+                    department: selectedCourse?.department || 'N/A',
+                    lecturerName: selectedCourse?.lecturerName || selectedCourse?.instructor || 'N/A',
+                    semester: selectedCourse?.semester || 'Fall 2025',
 
-                    // Confidence/Similarity (default for manual entries)
-                    similarity: 1.0, // 100% confidence for manual entry
+                    similarity: 1.0,
 
-                    // Metadata
                     manualEntry: true
                 });
                 console.log(`✅ Created attendance for ${student.name}: ${newStatus}`);
 
-                // Update local record with new doc ID
                 const updatedWithId = attendanceRecords.map(r => {
                     if (r.student.id === studentId) {
                         return {
@@ -247,7 +230,6 @@ const AttendancePage = () => {
             console.error('Error saving attendance:', err);
             const studentData = attendanceRecords.find(a => a.student.id === studentId);
             setError(`Failed to save ${studentData?.student.name || 'student'}: ${err.message}`);
-            // Revert on error
             await loadWeeklyAttendance();
         } finally {
             setSavingStudents(prev => {
@@ -258,10 +240,9 @@ const AttendancePage = () => {
         }
     };
 
-    // Warning System Handlers
     const handleOpenWarning = (student) => {
         setSelectedStudentForWarning(student);
-        setWarningMessage(`Dear ${student.name}, your attendance in ${courses.find(c => c.id === selectedCourse)?.name} is concerning. Please contact me.`);
+        setWarningMessage(`Dear ${student.name}, your attendance in ${selectedCourse?.name} is concerning. Please contact me.`);
         setWarningDialogOpen(true);
     };
 
@@ -270,16 +251,15 @@ const AttendancePage = () => {
 
         setSendingWarning(true);
         try {
-            const course = courses.find(c => c.id === selectedCourse);
             await createWarning({
-                courseId: selectedCourse,
-                courseName: course?.name || 'Unknown Course',
+                courseId: selectedCourse.id,
+                courseName: selectedCourse?.name || 'Unknown Course',
                 studentId: selectedStudentForWarning.id,
                 studentName: selectedStudentForWarning.name,
                 studentEmail: selectedStudentForWarning.email,
                 warningType,
                 message: warningMessage,
-                createdBy: 'Admin' // You could get this from auth context
+                createdBy: 'Doctor'
             });
 
             setSnackbar({
@@ -328,11 +308,8 @@ const AttendancePage = () => {
                 return 'error';
             default: return 'default';
         }
-    };
-
-    return (
+    }; return (
         <Box>
-            <Navbar />
             <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
                 {/* Header */}
                 <Box mb={3}>
@@ -340,11 +317,9 @@ const AttendancePage = () => {
                         Student Attendance
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                        Real-time attendance tracking for {courses.find(c => c.id === selectedCourse)?.name || 'course'}
+                        Real-time attendance tracking for {selectedCourse?.name || 'course'}
                     </Typography>
-                </Box>
-
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                </Box>                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
                 {/* Filters & Stats with Modern Design */}
                 <Paper sx={{
@@ -355,28 +330,12 @@ const AttendancePage = () => {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
                 }}>
                     <Grid container spacing={3} alignItems="center">
-                        <Grid item xs={12} md={4}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Select Course</InputLabel>
-                                <Select
-                                    value={selectedCourse}
-                                    label="Select Course"
-                                    onChange={(e) => setSelectedCourse(e.target.value)}
-                                >
-                                    {courses.map(course => (
-                                        <MenuItem key={course.id} value={course.id}>
-                                            {course.courseCode} - {course.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12} md={2}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Week</InputLabel>
+                        <Grid item xs={12} md={5}>
+                            <FormControl fullWidth variant="outlined" size="small">
+                                <InputLabel>Select Week</InputLabel>
                                 <Select
                                     value={selectedWeek}
-                                    label="Week"
+                                    label="Select Week"
                                     onChange={(e) => setSelectedWeek(e.target.value)}
                                 >
                                     {Array.from({ length: 16 }, (_, i) => i + 1).map(week => (
@@ -385,11 +344,11 @@ const AttendancePage = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} md={7}>
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="Search students..."
+                                placeholder="Search by name or number..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 InputProps={{
@@ -417,7 +376,7 @@ const AttendancePage = () => {
                                 '&:hover': { transform: 'translateY(-2px)' }
                             }}>
                                 <Typography variant="h3" fontWeight="800" color="text.primary">{stats.total}</Typography>
-                                <Typography variant="subtitle2" color="text.secondary" fontWeight="600">TOTAL</Typography>
+                                <Typography variant="subtitle2" color="text.secondary" fontWeight="600">TOTAL STUDENTS</Typography>
                             </Box>
                         </Grid>
                         <Grid item xs={6} sm={3}>
@@ -455,8 +414,10 @@ const AttendancePage = () => {
                                 transition: 'transform 0.2s',
                                 '&:hover': { transform: 'translateY(-2px)' }
                             }}>
-                                <Typography variant="h3" fontWeight="800" color="primary.main">{stats.captured}</Typography>
-                                <Typography variant="subtitle2" color="primary.dark" fontWeight="600">CAMERA</Typography>
+                                <Typography variant="h3" fontWeight="800" color="primary.main">
+                                    {stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0}%
+                                </Typography>
+                                <Typography variant="subtitle2" color="primary.dark" fontWeight="600">ATTENDANCE RATE</Typography>
                             </Box>
                         </Grid>
                     </Grid>
@@ -509,11 +470,30 @@ const AttendancePage = () => {
                                         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                             {/* Student Photo */}
                                             <Box display="flex" justifyContent="center" mb={2}>
-                                                <StudentPhotoAvatar
-                                                    photoUrl={student.photoUrl}
-                                                    name={student.name}
-                                                    sx={{ width: 80, height: 80 }}
-                                                />
+                                                <Box sx={{
+                                                    width: 100,
+                                                    height: 100,
+                                                    borderRadius: '50%',
+                                                    overflow: 'hidden',
+                                                    border: '3px solid #e0e0e0',
+                                                    '& img': { width: '100%', height: '100%', objectFit: 'cover' },
+                                                    '& .photo-placeholder': {
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        color: 'white',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '32px',
+                                                        fontWeight: 'bold'
+                                                    }
+                                                }}>
+                                                    <StudentPhoto
+                                                        photoUrl={student.photoUrl}
+                                                        name={student.name}
+                                                    />
+                                                </Box>
                                             </Box>
 
                                             {/* Student Name */}
@@ -565,10 +545,9 @@ const AttendancePage = () => {
                                         {/* Status Toggle */}
                                         <Box mt={2}>
                                             <ToggleButtonGroup
-                                                value={status === 'join' ? 'present' : status} // Normalize join to present for toggle
+                                                value={status === 'join' ? 'present' : status}
                                                 exclusive
                                                 onChange={(e, newStatus) => {
-                                                    // Allow null to clear selection
                                                     handleStatusChange(student.id, newStatus);
                                                 }}
                                                 fullWidth

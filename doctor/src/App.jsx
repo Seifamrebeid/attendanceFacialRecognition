@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import Overview from "./pages/Overview";
 import StudentList from "./pages/StudentList";
 import WeeklyStats from "./pages/WeeklyStats";
+import AttendancePage from "./pages/AttendancePage";
+import ReportsPage from "./pages/ReportsPage";
+import WarningsPage from "./pages/WarningsPage";
 import "./App.css";
 
 // Protected Route wrapper
@@ -35,6 +38,9 @@ function App() {
             <Route index element={<Overview />} />
             <Route path="students" element={<StudentList />} />
             <Route path="weekly" element={<WeeklyStats />} />
+            <Route path="attendance" element={<AttendancePage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="warnings" element={<WarningsPage />} />
           </Route>
         </Routes>
       </Router>
