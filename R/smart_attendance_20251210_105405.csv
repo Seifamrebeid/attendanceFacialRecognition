@@ -1,0 +1,4 @@
+name,action,timestamp,date,time,similarity,match_percent,duration_minutes,session_id
+Seif_amr_Ebeid_231014746,JOIN,2025-12-10 10:53:46,2025-12-10,10:53:46,0.77,77,,1
+Abdullah_Nagy_Abdullah_231004881,JOIN,2025-12-10 10:53:48,2025-12-10,10:53:48,0.77,77,,2
+Seif_amr_Ebeid_231014746,LEFT,2025-12-10 10:54:02,2025-12-10,10:54:02,0.7,69,0.3,1
