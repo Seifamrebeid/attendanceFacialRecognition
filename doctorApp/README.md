@@ -1,195 +1,50 @@
-# Doctor App - Admin Portal Mobile App
+# Welcome to your Expo app 👋
 
-This is the mobile version of the admin attendance management system, built with React Native and Expo.
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## Features
+## Get started
 
-✅ **Authentication** - Firebase Auth with email/password
-✅ **Dashboard** - Overview statistics and quick actions
-✅ **Courses Management** - Create, edit, and delete courses
-✅ **Students Management** - View student list with photos
-✅ **Attendance Tracking** - Record and view attendance
-✅ **Warnings System** - Create and manage student warnings
-✅ **Analytics** - Late arrival analytics with charts
-✅ **Predictions** - ML-based absence predictions
-✅ **Reports** - Generate various reports
+1. Install dependencies
 
-## Setup Instructions
+   ```bash
+   npm install
+   ```
 
-### 1. Install Dependencies
+2. Start the app
 
-```bash
-cd doctorApp
-npm install
-```
+   ```bash
+   npx expo start
+   ```
 
-### 2. Configure Firebase
+In the output, you'll find options to open the app in a
 
-Edit `config/firebase.js` and replace with your Firebase credentials:
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-```javascript
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
-```
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-You can find these credentials in your Firebase Console:
+## Get a fresh project
 
-1. Go to https://console.firebase.google.com
-2. Select your project
-3. Go to Project Settings > General
-4. Scroll down to "Your apps" section
-5. Copy the configuration
-
-### 3. Enable Firebase Services
-
-Make sure the following are enabled in your Firebase project:
-
-- **Authentication**: Enable Email/Password sign-in method
-- **Firestore Database**: Create database in production mode
-- **Collections needed**:
-  - `courses`
-  - `students`
-  - `attendance`
-  - `warnings`
-  - `predictions`
-
-### 4. Run the App
+When you're ready, run:
 
 ```bash
-npm start
+npm run reset-project
 ```
 
-Then:
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-- Press `a` for Android
-- Press `i` for iOS
-- Press `w` for web
-- Scan QR code with Expo Go app on your phone
+## Learn more
 
-## Project Structure
+To learn more about developing your project with Expo, look at the following resources:
 
-```
-doctorApp/
-├── App.js                 # Main app entry point
-├── config/
-│   └── firebase.js        # Firebase configuration
-├── context/
-│   └── AuthContext.js     # Authentication context
-├── navigation/
-│   └── AppNavigator.js    # Navigation setup
-├── screens/
-│   ├── LoginScreen.js
-│   ├── DashboardScreen.js
-│   ├── CoursesScreen.js
-│   ├── StudentsScreen.js
-│   ├── AttendanceScreen.js
-│   ├── WarningsScreen.js
-│   ├── AnalyticsScreen.js
-│   ├── PredictionsScreen.js
-│   └── ReportsScreen.js
-└── services/
-    ├── coursesService.js
-    ├── studentsService.js
-    ├── attendanceService.js
-    ├── warningsService.js
-    ├── analyticsService.js
-    └── predictionService.js
-```
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-## Technologies Used
+## Join the community
 
-- **React Native** - Mobile framework
-- **Expo** - Development platform
-- **Firebase** - Backend (Auth + Firestore)
-- **React Navigation** - Navigation library
-- **React Native Paper** - UI components
-- **React Native Chart Kit** - Data visualization
-- **date-fns** - Date formatting
+Join our community of developers creating universal apps.
 
-## Usage
-
-### Login
-
-Use your Firebase authentication credentials to log in.
-
-### Dashboard
-
-View overview statistics:
-
-- Total courses
-- Total students
-- Total warnings
-- High-risk students
-
-### Managing Courses
-
-- Add new courses with details
-- Edit existing courses
-- Delete courses
-- View course schedules
-
-### Recording Attendance
-
-1. Select a course
-2. Mark students as Present (P), Late (L), or Absent (A)
-3. Submit attendance
-
-### Analytics
-
-- View arrival time patterns
-- See statistics (mean, standard deviation)
-- Analyze late arrival trends
-
-### Predictions
-
-- View absence probability for students
-- Risk levels: High, Medium, Low
-- Based on historical attendance data
-
-## Troubleshooting
-
-### Firebase Connection Issues
-
-- Verify Firebase credentials in `config/firebase.js`
-- Check Firebase project settings
-- Ensure Firestore rules allow read/write
-
-### App Won't Start
-
-```bash
-# Clear cache
-npm start -- --clear
-
-# Reinstall dependencies
-rm -rf node_modules
-npm install
-```
-
-### iOS Issues
-
-```bash
-cd ios
-pod install
-cd ..
-```
-
-## Next Steps
-
-1. **Configure Firebase** with your credentials
-2. **Test Authentication** by creating a user in Firebase Console
-3. **Add Sample Data** to Firestore collections
-4. **Test Features** on your device or emulator
-
-## Support
-
-For issues or questions, refer to:
-
-- [Expo Documentation](https://docs.expo.dev/)
-- [React Navigation](https://reactnavigation.org/)
-- [Firebase Documentation](https://firebase.google.com/docs)
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

@@ -67,8 +67,13 @@ const CourseLogin = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>📊 Attendance Dashboard</h1>
-          <p>Lecturer Login</p>
+          <img
+            src="/aast_logo.png"
+            alt="AAST Logo"
+            style={{ width: 100, marginBottom: 10, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}
+          />
+          <h1>AAST Smart Attendance</h1>
+          <p>Lecturer Portal</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">

@@ -18,7 +18,12 @@ const Dashboard = () => {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-left">
-          <h1>📊 Attendance Dashboard</h1>
+          <img
+            src="/aast_logo.png"
+            alt="AAST"
+            style={{ height: 45, marginRight: 15, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
+          />
+          <h1>Attendance Dashboard</h1>
           <div className="course-info">
             <span className="course-code">{selectedCourse?.courseCode}</span>
             <span className="course-name">{selectedCourse?.courseName}</span>
@@ -78,6 +83,14 @@ const Dashboard = () => {
           }
         >
           Warnings
+        </Link>
+        <Link
+          to="/dashboard/analytics"
+          className={
+            isActive("/dashboard/analytics") ? "nav-link active" : "nav-link"
+          }
+        >
+          📈 Student Performance
         </Link>
       </nav>
 

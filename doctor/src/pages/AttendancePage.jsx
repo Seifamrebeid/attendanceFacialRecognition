@@ -34,7 +34,7 @@ import StudentPhoto from '../components/StudentPhoto';
 import { getAllStudents } from '../services/studentsService';
 import { createWarning } from '../services/warningsService';
 import { db } from '../config/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { format } from 'date-fns';
 
 const AttendancePage = () => {
@@ -59,11 +59,74 @@ const AttendancePage = () => {
         loadStudents();
     }, []);
 
+    // Real-time Listener for Attendance
     useEffect(() => {
-        if (selectedCourse && selectedWeek && students.length > 0) {
-            loadWeeklyAttendance();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        let unsubscribe;
+
+        const setupRealtimeListener = async () => {
+            if (!selectedCourse || !selectedWeek || students.length === 0) return;
+
+            setLoading(true);
+            setError('');
+
+            try {
+                const attendanceRef = collection(db, 'attendance');
+                const q = query(
+                    attendanceRef,
+                    where('courseId', '==', selectedCourse.id),
+                    where('weekNumber', '==', selectedWeek)
+                );
+
+                unsubscribe = onSnapshot(q, (querySnapshot) => {
+                    const records = [];
+                    querySnapshot.forEach((docSnap) => {
+                        records.push({
+                            id: docSnap.id,
+                            ...docSnap.data()
+                        });
+                    });
+
+                    console.log(`Realtime update: Found ${records.length} records for week ${selectedWeek}`);
+
+                    const attendanceData = students.map(student => {
+                        const record = records.find(r => {
+                            const recordName = r.studentName || r.name || '';
+                            const parts = recordName.split('_');
+                            // Use trim() to handle potential whitespace issues
+                            const studentId = parts[parts.length - 1].trim();
+                            return studentId === student.studentNumber || studentId === student.id;
+                        });
+
+                        return {
+                            student,
+                            record: record || null,
+                            status: record ? (record.status || record.action?.toLowerCase() || 'present') : null,
+                            arrivalTime: record?.time || record?.arrivalTime || null,
+                            confidence: record?.similarity || record?.confidenceScore || null,
+                            weekCount: 0
+                        };
+                    });
+
+                    setAttendanceRecords(attendanceData);
+                    setLoading(false);
+                }, (err) => {
+                    console.error('Realtime sync error:', err);
+                    setLoading(false);
+                });
+
+            } catch (err) {
+                console.error('Error setting up listener:', err);
+                setLoading(false);
+            }
+        };
+
+        setupRealtimeListener();
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
     }, [selectedCourse, selectedWeek, students]);
 
     const loadStudents = async () => {
@@ -73,70 +136,6 @@ const AttendancePage = () => {
             setStudents(data);
         } catch (err) {
             console.error('Failed to load students:', err);
-        }
-    };
-
-    const loadWeeklyAttendance = async () => {
-        if (!selectedCourse || !selectedWeek) return;
-
-        setLoading(true);
-        setError('');
-
-        try {
-            const attendanceRef = collection(db, 'attendance');
-            const q = query(
-                attendanceRef,
-                where('courseId', '==', selectedCourse.id),
-                where('weekNumber', '==', selectedWeek)
-            );
-
-            const querySnapshot = await getDocs(q);
-            const records = [];
-
-            querySnapshot.forEach((docSnap) => {
-                records.push({
-                    id: docSnap.id,
-                    ...docSnap.data()
-                });
-            });
-
-            console.log(`Found ${records.length} attendance records for week ${selectedWeek}`);
-            console.log(`Total students: ${students.length}`);
-
-            const attendanceData = students.map(student => {
-                const record = records.find(r => {
-                    const recordName = r.studentName || r.name || '';
-                    const parts = recordName.split('_');
-                    const studentId = parts[parts.length - 1];
-                    return studentId === student.studentNumber || studentId === student.id;
-                });
-
-                return {
-                    student,
-                    record: record || null,
-                    status: record ? (record.status || record.action?.toLowerCase() || 'present') : null,
-                    arrivalTime: record?.time || record?.arrivalTime || null,
-                    confidence: record?.similarity || record?.confidenceScore || null,
-                    weekCount: 0
-                };
-            });
-
-            console.log(`Prepared attendance data for ${attendanceData.length} students`);
-            setAttendanceRecords(attendanceData);
-        } catch (err) {
-            console.error('Error loading attendance:', err);
-            // Still show students even if query fails
-            const attendanceData = students.map(student => ({
-                student,
-                record: null,
-                status: null,
-                arrivalTime: null,
-                confidence: null,
-                weekCount: 0
-            }));
-            setAttendanceRecords(attendanceData);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -230,7 +229,7 @@ const AttendancePage = () => {
             console.error('Error saving attendance:', err);
             const studentData = attendanceRecords.find(a => a.student.id === studentId);
             setError(`Failed to save ${studentData?.student.name || 'student'}: ${err.message}`);
-            await loadWeeklyAttendance();
+            // Re-fetch handled by onSnapshot eventually, but we can force state reload if needed
         } finally {
             setSavingStudents(prev => {
                 const newSet = new Set(prev);
@@ -522,8 +521,6 @@ const AttendancePage = () => {
                                                     Last seen: {arrivalTime}
                                                 </Typography>
                                             )}
-
-                                            {/* Confidence (if captured) */}
                                             {confidence && (
                                                 <Typography variant="caption" color="primary" display="block" mb={1}>
                                                     Confidence: {(confidence * 100).toFixed(1)}%
@@ -580,72 +577,72 @@ const AttendancePage = () => {
                         )}
                     </Grid>
                 )}
+
+                {/* Warning Dialog */}
+                <Dialog open={warningDialogOpen} onClose={() => setWarningDialogOpen(false)} maxWidth="sm" fullWidth>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Warning color="warning" />
+                        Issue Warning
+                    </DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Student: <strong>{selectedStudentForWarning?.name}</strong>
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary" gutterBottom>
+                                ID: {selectedStudentForWarning?.studentNumber}
+                            </Typography>
+
+                            <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
+                                <InputLabel>Warning Type</InputLabel>
+                                <Select
+                                    value={warningType}
+                                    label="Warning Type"
+                                    onChange={(e) => setWarningType(e.target.value)}
+                                >
+                                    <MenuItem value="Low Attendance">Low Attendance</MenuItem>
+                                    <MenuItem value="Misconduct">Misconduct</MenuItem>
+                                    <MenuItem value="Late Submission">Late Submission</MenuItem>
+                                    <MenuItem value="Other">Other</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            <TextField
+                                fullWidth
+                                multiline
+                                rows={4}
+                                label="Warning Message"
+                                value={warningMessage}
+                                onChange={(e) => setWarningMessage(e.target.value)}
+                                placeholder="Enter the reason for this warning..."
+                            />
+                        </Box>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setWarningDialogOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={handleSendWarning}
+                            variant="contained"
+                            color="warning"
+                            startIcon={sendingWarning ? <CircularProgress size={20} /> : <Send />}
+                            disabled={sendingWarning}
+                        >
+                            Send Warning
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Snackbar for feedback */}
+                <Snackbar
+                    open={snackbar.open}
+                    autoHideDuration={6000}
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                >
+                    <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+                        {snackbar.message}
+                    </Alert>
+                </Snackbar>
             </Container>
-
-            {/* Warning Dialog */}
-            <Dialog open={warningDialogOpen} onClose={() => setWarningDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Warning color="warning" />
-                    Issue Warning
-                </DialogTitle>
-                <DialogContent>
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Student: <strong>{selectedStudentForWarning?.name}</strong>
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" gutterBottom>
-                            ID: {selectedStudentForWarning?.studentNumber}
-                        </Typography>
-
-                        <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
-                            <InputLabel>Warning Type</InputLabel>
-                            <Select
-                                value={warningType}
-                                label="Warning Type"
-                                onChange={(e) => setWarningType(e.target.value)}
-                            >
-                                <MenuItem value="Low Attendance">Low Attendance</MenuItem>
-                                <MenuItem value="Misconduct">Misconduct</MenuItem>
-                                <MenuItem value="Late Submission">Late Submission</MenuItem>
-                                <MenuItem value="Other">Other</MenuItem>
-                            </Select>
-                        </FormControl>
-
-                        <TextField
-                            fullWidth
-                            multiline
-                            rows={4}
-                            label="Warning Message"
-                            value={warningMessage}
-                            onChange={(e) => setWarningMessage(e.target.value)}
-                            placeholder="Enter the reason for this warning..."
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setWarningDialogOpen(false)}>Cancel</Button>
-                    <Button
-                        onClick={handleSendWarning}
-                        variant="contained"
-                        color="warning"
-                        startIcon={sendingWarning ? <CircularProgress size={20} /> : <Send />}
-                        disabled={sendingWarning}
-                    >
-                        Send Warning
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Snackbar for feedback */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
         </Box>
     );
 };
