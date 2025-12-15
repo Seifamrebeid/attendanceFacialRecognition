@@ -76,7 +76,15 @@ export default function AdminDashboard() {
     router.replace('/login');
   };
 
-  const StatCard = ({ title, value, icon, color, onPress }: any) => (
+  interface StatCardProps {
+    title: string;
+    value: string | number;
+    icon: string;
+    color: string;
+    onPress?: () => void;
+  }
+
+  const StatCard = ({ title, value, icon, color, onPress }: StatCardProps) => (
     <TouchableOpacity
       style={[styles.statCard, { borderLeftColor: color }]}
       onPress={onPress}

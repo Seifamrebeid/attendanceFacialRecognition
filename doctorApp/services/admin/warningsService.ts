@@ -2,7 +2,7 @@
 // Handles warning operations in Firestore
 
 import { db } from '@/config/firebase';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
 
 export interface Warning {
     id?: string;
@@ -14,7 +14,7 @@ export interface Warning {
     warningType: string;
     message: string;
     createdBy: string;
-    createdAt?: any;
+    createdAt?: Timestamp | Date | string;
     status?: string;
     emailSent?: boolean;
 }

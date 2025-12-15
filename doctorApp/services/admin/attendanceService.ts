@@ -2,8 +2,8 @@
 // Handles attendance record operations
 
 import { db } from '@/config/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { loadStudentsFromCSV } from '../studentService';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { loadStudentsFromCSV, Student } from '../studentService';
 
 export interface AttendanceRecord {
     id?: string;
@@ -11,15 +11,11 @@ export interface AttendanceRecord {
     courseId: string;
     action: string;
     status?: string;
-    timestamp: any;
-    createdAt?: any;
+    timestamp: Timestamp | Date | string;
+    createdAt?: Timestamp | Date | string;
 }
 
-export interface HighRiskStudent {
-    id: string;
-    name: string;
-    studentNumber: string;
-    email: string;
+export interface HighRiskStudent extends Student {
     absenceCount: number;
     lastAbsence: AttendanceRecord;
 }
@@ -38,7 +34,7 @@ export const getHighRiskStudents = async (threshold: number = 3): Promise<HighRi
         const attendanceDocs = snapshot.docs.map(doc => doc.data() as AttendanceRecord);
 
         // 3. Calculate absences per student
-        const studentStats: { [key: string]: { student: any; absences: number; records: AttendanceRecord[] } } = {};
+        const studentStats: { [key: string]: { student: Student; absences: number; records: AttendanceRecord[] } } = {};
 
         // Initialize stats
         students.forEach(student => {

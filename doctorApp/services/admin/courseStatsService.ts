@@ -19,6 +19,19 @@ export interface CourseWithStats extends Course {
     statistics: CourseStatistics;
 }
 
+interface AttendanceRecord {
+    id?: string;
+    studentId?: string;
+    studentNumber?: string;
+    studentName?: string;
+    action?: string;
+    status?: string;
+    timestamp?: any;
+    createdAt?: any;
+    courseId?: string;
+    courseName?: string;
+}
+
 /**
  * Get comprehensive statistics for a specific course
  */
@@ -28,7 +41,7 @@ export const getCourseStatistics = async (courseId: string): Promise<CourseStati
         const q = query(attendanceRef, where('courseId', '==', courseId));
         const attendanceSnapshot = await getDocs(q);
 
-        const attendanceRecords: any[] = [];
+        const attendanceRecords: AttendanceRecord[] = [];
         attendanceSnapshot.forEach((doc) => {
             attendanceRecords.push({ id: doc.id, ...doc.data() });
         });
@@ -50,7 +63,7 @@ export const getAllCoursesStatistics = async (): Promise<CourseWithStats[]> => {
         const attendanceRef = collection(db, 'attendance');
         const attendanceSnapshot = await getDocs(attendanceRef);
 
-        const allAttendanceRecords: any[] = [];
+        const allAttendanceRecords: AttendanceRecord[] = [];
         attendanceSnapshot.forEach((doc) => {
             allAttendanceRecords.push({ id: doc.id, ...doc.data() });
         });
@@ -78,11 +91,18 @@ export const getAllCoursesStatistics = async (): Promise<CourseWithStats[]> => {
     }
 };
 
+interface StudentAttendance {
+    studentId: string;
+    studentName?: string;
+    sessions: { [sessionDate: string]: { attended: boolean } };
+    totalJoins: number;
+}
+
 /**
  * Calculate statistics from attendance records
  */
-const calculateCourseStats = (attendanceRecords: any[], courseId: string): CourseStatistics => {
-    const studentAttendanceMap: { [key: string]: any } = {};
+const calculateCourseStats = (attendanceRecords: AttendanceRecord[], courseId: string): CourseStatistics => {
+    const studentAttendanceMap: { [key: string]: StudentAttendance } = {};
     const sessionDates = new Set<string>();
     const uniqueStudents = new Set<string>();
 
@@ -131,7 +151,7 @@ const calculateCourseStats = (attendanceRecords: any[], courseId: string): Cours
     const totalPossibleAttendances = totalStudents * totalSessions;
 
     Object.values(studentAttendanceMap).forEach((student) => {
-        totalAttended += Object.values(student.sessions).filter((s: any) => s.attended).length;
+        totalAttended += Object.values(student.sessions).filter((s) => s.attended).length;
     });
 
     const attendanceRate =
