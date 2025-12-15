@@ -126,7 +126,7 @@ export default function CoursesScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#2563eb" />
+                <ActivityIndicator size="large" color="#10b981" />
                 <Text style={styles.loadingText}>Loading courses...</Text>
             </View>
         );
@@ -140,7 +140,7 @@ export default function CoursesScreen() {
                     <Text style={styles.headerSubtitle}>{courses.length} total courses</Text>
                 </View>
                 <TouchableOpacity onPress={handleAddCourse} style={styles.addButton}>
-                    <IconSymbol name="plus.circle.fill" size={28} color="#2563eb" />
+                    <IconSymbol name="plus.circle.fill" size={28} color="#10b981" />
                 </TouchableOpacity>
             </View>
 
@@ -159,7 +159,7 @@ export default function CoursesScreen() {
                         <View key={course.id} style={styles.courseCard}>
                             <View style={styles.courseHeader}>
                                 <View style={styles.courseIcon}>
-                                    <IconSymbol name="book.fill" size={24} color="#2563eb" />
+                                    <IconSymbol name="book.fill" size={24} color="#10b981" />
                                 </View>
                                 <View style={styles.courseInfo}>
                                     <Text style={styles.courseName}>{course.name}</Text>
@@ -191,7 +191,7 @@ export default function CoursesScreen() {
                                     style={styles.actionButton}
                                     onPress={() => handleEditCourse(course)}
                                 >
-                                    <IconSymbol name="pencil" size={18} color="#2563eb" />
+                                    <IconSymbol name="pencil" size={18} color="#10b981" />
                                     <Text style={styles.actionButtonText}>Edit</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -305,7 +305,7 @@ export default function CoursesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#f0fdf4',
     },
     header: {
         flexDirection: 'row',
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#f0fdf4',
     },
     loadingText: {
         marginTop: 16,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#eff6ff',
+        backgroundColor: '#dcfce7',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -427,13 +427,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 8,
         borderRadius: 8,
-        backgroundColor: '#eff6ff',
+        backgroundColor: '#dcfce7',
         gap: 4,
     },
     actionButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#2563eb',
+        color: '#10b981',
     },
     deleteButton: {
         backgroundColor: '#fef2f2',
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     saveButton: {
-        backgroundColor: '#2563eb',
+        backgroundColor: '#10b981',
     },
     saveButtonText: {
         fontSize: 16,

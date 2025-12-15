@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     header: {
-        backgroundColor: '#1a1a2e',
+        backgroundColor: '#10b981',
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     tabActive: {
-        backgroundColor: '#667eea',
+        backgroundColor: '#10b981',
     },
     tabText: {
         fontSize: 15,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#667eea',
+        backgroundColor: '#10b981',
         justifyContent: 'center',
         alignItems: 'center',
     },

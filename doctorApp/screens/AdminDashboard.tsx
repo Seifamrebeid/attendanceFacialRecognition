@@ -134,13 +134,13 @@ export default function AdminDashboard() {
                 title="Total Courses"
                 value={stats.totalCourses}
                 icon="book.fill"
-                color="#2563eb"
+                color="#10b981"
               />
               <StatCard
                 title="Total Students"
                 value={stats.totalStudents}
                 icon="person.2.fill"
-                color="#10b981"
+                color="#059669"
               />
               <StatCard
                 title="Warnings"
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                 title="Avg Attendance"
                 value={`${stats.averageAttendance}%`}
                 icon="chart.bar.fill"
-                color="#8b5cf6"
+                color="#14b8a6"
               />
             </View>
 
@@ -160,15 +160,15 @@ export default function AdminDashboard() {
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <View style={styles.actionButtons}>
                 <TouchableOpacity style={styles.actionButton}>
-                  <IconSymbol name="person.crop.circle.badge.plus" size={24} color="#2563eb" />
+                  <IconSymbol name="person.crop.circle.badge.plus" size={24} color="#10b981" />
                   <Text style={styles.actionButtonText}>Add Student</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <IconSymbol name="book.closed.fill" size={24} color="#2563eb" />
+                  <IconSymbol name="book.closed.fill" size={24} color="#10b981" />
                   <Text style={styles.actionButtonText}>Add Course</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
-                  <IconSymbol name="bell.badge.fill" size={24} color="#2563eb" />
+                  <IconSymbol name="bell.badge.fill" size={24} color="#10b981" />
                   <Text style={styles.actionButtonText}>Send Warning</Text>
                 </TouchableOpacity>
               </View>
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f0fdf4',
   },
   header: {
     flexDirection: 'row',
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: '#059669',
   },
   statsGrid: {
     flexDirection: 'row',
