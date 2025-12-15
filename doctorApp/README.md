@@ -1,8 +1,30 @@
-# Welcome to your Expo app 👋
+# Admin App - Attendance Management System
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This is the mobile admin application for the Attendance Facial Recognition system, built with [Expo](https://expo.dev) and React Native.
 
-## Get started
+## Overview
+
+This mobile app provides full administrative capabilities for managing courses, students, attendance records, and warnings. It's a complete migration of the web-based admin panel to a native mobile experience.
+
+## Features
+
+- 🔐 **Secure Authentication** - Firebase-based login system
+- 📊 **Dashboard** - Overview of courses, students, and attendance statistics
+- 📚 **Course Management** - Full CRUD operations for courses
+- 👥 **Student Management** - View and manage student records
+- ✅ **Attendance Tracking** - Monitor attendance in real-time
+- 📈 **Reports & Analytics** - Generate and view attendance reports
+- ⚠️ **Warning System** - Track and manage student warnings
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 16+ installed
+- iOS Simulator (for iOS development) or Android Studio (for Android)
+- Expo Go app on your physical device (optional)
+
+### Installation
 
 1. Install dependencies
 
@@ -10,41 +32,89 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Start the development server
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
+   - Press `i` for iOS simulator
+   - Press `a` for Android emulator
+   - Scan QR code with Expo Go app
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Project Structure
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+doctorApp/
+├── app/                    # File-based routing
+│   ├── (tabs)/            # Tab navigation screens
+│   │   ├── index.tsx      # Dashboard
+│   │   ├── courses.tsx    # Courses management
+│   │   ├── explore.tsx    # Students list
+│   │   ├── attendance.tsx # Attendance tracking
+│   │   └── reports.tsx    # Reports
+│   ├── login.tsx          # Login screen
+│   └── _layout.tsx        # Root layout
+├── screens/               # Screen components
+├── services/              # API services
+│   └── admin/            # Admin-specific services
+├── context/              # React context providers
+├── components/           # Reusable components
+└── config/               # Configuration files
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Authentication
 
-## Learn more
+Default admin credentials should be configured in your Firebase console. Users need to log in before accessing any admin features.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Available Scripts
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- `npm start` - Start the Expo development server
+- `npm run android` - Run on Android emulator
+- `npm run ios` - Run on iOS simulator
+- `npm run web` - Run in web browser
+- `npm run lint` - Run ESLint
 
-## Join the community
+## Firebase Configuration
 
-Join our community of developers creating universal apps.
+The app connects to Firebase for:
+- Authentication
+- Firestore database
+- Cloud functions
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Configuration is in `config/firebase.ts`. Make sure Firebase is properly set up for your project.
+
+## Migration from Web Admin
+
+This app is a complete migration of the web-based admin panel. See [MIGRATION.md](./MIGRATION.md) for detailed information about:
+- What was migrated
+- Key differences from the web version
+- Features not yet implemented
+- Future enhancement opportunities
+
+## Technology Stack
+
+- **React Native** - Cross-platform mobile framework
+- **Expo** - Development platform and tools
+- **TypeScript** - Type-safe JavaScript
+- **Firebase** - Backend services
+- **Expo Router** - File-based navigation
+
+## Contributing
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Test thoroughly on both iOS and Android
+4. Submit a pull request
+
+## Learn More
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Documentation](https://reactnative.dev/)
+- [Firebase Documentation](https://firebase.google.com/docs)
+
+## Support
+
+For issues or questions, please create an issue in the repository.
+
