@@ -1,465 +1,294 @@
-# README.md
-
 # Facial Recognition Attendance System - R Implementation
 
-This R implementation provides facial recognition attendance functionality using a hybrid approach that combines R workflow management with Python deep learning libraries.
+## Quick Start Guide (Step-by-Step)
 
-## Features
+### Step 1: Prerequisites
+- **R** (version 4.0+)
+- **Conda** (Anaconda or Miniconda)
+- **Webcam**
+- **Firebase** service.json credentials file
 
-- **Face Encoding**: Automatically creates facial encodings from dataset images
-- **Real-time Recognition**: Recognizes faces from webcam feed in real-time
-- **Attendance Logging**: Automatic attendance logging with timestamps
-- **High Accuracy**: Uses FaceNet (InceptionResnetV1) for robust face recognition
-- **Easy Setup**: Single-script setup and execution
+### Step 2: Setup Conda Environment
+```bash
+# Create conda environment
+conda create -n faceenv python=3.9 -y
+conda activate faceenv
 
-## Files Structure
+# Install Python packages
+pip install opencv-python numpy torch torchvision facenet-pytorch Pillow pandas firebase-admin
+```
+
+### Step 3: Add Face Images
+Add face images to `R/dataset/` folder:
+```
+dataset/
+├── john_doe.jpg      # Name = "john_doe"
+├── jane_smith.png    # Name = "jane_smith"
+└── bob_jones.jpeg    # Name = "bob_jones"
+```
+**Image requirements:** Clear, front-facing photos with good lighting.
+
+### Step 4: Encode Faces (One-Time)
+```bash
+cd R/
+Rscript setup/quick_setup.R
+```
+This creates `face_encodings.pkl` with encoded face data.
+
+### Step 5: Run the Attendance System
+```bash
+Rscript main.R
+```
+
+**New Features:**
+1. **Course Selection** - Choose from Firestore courses list
+2. **Login** - Enter lecturer username/password
+3. **Week Selection** - Select week number (1-16)
+4. **Real-time Attendance** - Records saved immediately to Firestore
+
+---
+
+## 🌐 React Integration (REST API)
+
+For React websites, use the **API Server** instead of the desktop app.
+
+### Start the API Server
+```bash
+# Install R package
+install.packages("plumber")
+
+# Run API server
+Rscript api_server.R
+```
+
+The API will start on `http://localhost:8000`
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/ready` | System readiness |
+| GET | `/api/courses` | List all courses |
+| GET | `/api/courses/<id>` | Get course by ID |
+| POST | `/api/auth/login` | Validate credentials |
+| GET | `/api/attendance` | Get attendance records |
+| POST | `/api/attendance` | Record attendance |
+| POST | `/api/recognition/start` | Start recognition session |
+| POST | `/api/recognition/frame` | Process webcam frame |
+| GET | `/api/recognition/known-faces` | List enrolled students |
+| GET | `/api/reports/weekly` | Weekly attendance report |
+| GET | `/api/reports/semester` | Semester attendance summary |
+
+### React Usage Example
+
+```javascript
+// 1. Login
+const login = async (courseId, username, password) => {
+  const response = await fetch('http://localhost:8000/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courseId, username, password })
+  });
+  return response.json();
+};
+
+// 2. Get courses
+const getCourses = async () => {
+  const response = await fetch('http://localhost:8000/api/courses');
+  return response.json();
+};
+
+// 3. Process webcam frame for face recognition
+const recognizeFace = async (base64Image) => {
+  const response = await fetch('http://localhost:8000/api/recognition/frame', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64Image })
+  });
+  return response.json();
+  // Returns: { faces: [{ name: "John", similarity: 0.87, recognized: true }] }
+};
+
+// 4. Record attendance
+const recordAttendance = async (data) => {
+  const response = await fetch('http://localhost:8000/api/attendance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studentName: data.name,
+      courseId: data.courseId,
+      courseCode: data.courseCode,
+      courseName: data.courseName,
+      weekNumber: data.weekNumber,
+      action: 'JOIN',
+      similarity: data.similarity
+    })
+  });
+  return response.json();
+};
+
+// 5. Get weekly report
+const getWeeklyReport = async (courseCode, weekNumber) => {
+  const response = await fetch(
+    `http://localhost:8000/api/reports/weekly?courseCode=${courseCode}&weekNumber=${weekNumber}`
+  );
+  return response.json();
+};
+```
+
+### React Webcam Integration
+
+```javascript
+import Webcam from 'react-webcam';
+
+function AttendanceScanner() {
+  const webcamRef = useRef(null);
+  
+  const captureAndRecognize = async () => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    const result = await recognizeFace(imageSrc);
+    
+    if (result.data.faces.length > 0) {
+      const face = result.data.faces[0];
+      if (face.recognized) {
+        console.log(`Recognized: ${face.name} (${face.similarity})`);
+        // Record attendance
+        await recordAttendance({
+          name: face.name,
+          similarity: face.similarity,
+          // ... course info
+        });
+      }
+    }
+  };
+  
+  return (
+    <div>
+      <Webcam ref={webcamRef} screenshotFormat="image/jpeg" />
+      <button onClick={captureAndRecognize}>Scan Face</button>
+    </div>
+  );
+}
+```
+
+---
+
+## File Structure - What Each File Does
 
 ```
 R/
-├── quick_setup.R           # Creates face encodings from dataset
-├── working_recognition.R   # Main face recognition system
-├── face_encodings.pkl      # Generated face encodings (Python pickle format)
-├── face_recognition.py     # Generated Python recognition script
-├── dataset/               # Directory for face images
-├── attendance_*.csv        # Generated attendance logs
-└── README.md              # This file
+├── main.R                        # ENTRY POINT - Desktop app
+├── api_server.R                  # REST API for React integration
+├── utils.R                       # Helper functions
+│
+├── setup/                        # Setup and configuration files
+│   ├── config.R                  # Settings (camera size, thresholds)
+│   ├── environment_setup.R       # Python environment checks
+│   └── quick_setup.R             # SETUP - Run once to encode faces
+│
+├── generators/                   # Python code generators
+│   ├── firebase.R                # Generates Firebase code
+│   ├── course_selection.R        # Generates course/login UI code
+│   ├── detection.R               # Generates face detection code
+│   ├── ui.R                      # Generates UI code
+│   └── main_loop.R               # Generates main loop code
+│
+├── generated/                    # Auto-generated Python files
+│   └── face_recognition.py       # Generated: main Python script
+│
+├── dataset/                      # YOUR FACE IMAGES GO HERE
+├── face_encodings.pkl            # Generated: encoded face data
+│
+├── README.md                     # This documentation
+└── ENHANCED_FEATURES.md          # Feature documentation
 ```
 
-## Complete Setup Guide - Zero to Done
+---
 
-### Step 1: Prerequisites Check
+## Firestore Data Structure
 
-Before starting, ensure you have:
-
-- **R installed** (version 4.0+)
-- **Python installed** (3.8+)
-- **Working webcam**
-- **PowerShell** (Windows) or terminal access
-
-### Step 2: Navigate to Project
-
-Open PowerShell and navigate to the R folder:
-
-```powershell
-cd "e:\attendanceFacialRecognition\R"
+### Courses Collection
+```
+courses/
+└── {courseId}
+    ├── courseCode: "EBA3201"
+    ├── courseName: "Advanced Statistics"
+    ├── lecturerName: "Mohamed Fathy"
+    ├── lecturerUsername: "fathy"
+    ├── lecturerPassword: "12345"
+    ├── department: "Ai"
+    ├── semester: "Fall 2025"
+    └── schedule: "Sunday 10:30"
 ```
 
-### Step 3: Create Virtual Environment
-
-Create a Python virtual environment inside the R folder:
-
-```powershell
-python -m venv venv
+### Attendance Records (Real-time)
+```
+attendance/
+└── {recordId}
+    ├── studentName: "John Doe"
+    ├── action: "JOIN" | "LEFT" | "RETURNED"
+    ├── similarity: 0.87
+    ├── timestamp: "2025-11-30T10:30:45.123Z"
+    ├── date: "2025-11-30"
+    ├── time: "10:30:45"
+    ├── dayOfWeek: "Sunday"
+    ├── courseId: "abc123"
+    ├── courseCode: "EBA3201"
+    ├── courseName: "Advanced Statistics"
+    ├── department: "Ai"
+    ├── semester: "Fall 2025"
+    ├── weekNumber: 5
+    ├── lecturerName: "Mohamed Fathy"
+    └── createdAt: "2025-11-30T10:30:45.123Z"
 ```
 
-Expected output:
+---
 
-```
-PS E:\attendanceFacialRecognition\R>
-```
-
-### Step 4: Activate Virtual Environment
-
-Activate the virtual environment:
-
-```powershell
-& ".\venv\Scripts\Activate.ps1"
-```
-
-You should see `(venv)` prefix in your prompt:
-
-```
-(venv) PS E:\attendanceFacialRecognition\R>
-```
-
-### Step 5: Install Python Packages
-
-Install all required packages:
-
-```powershell
-pip install opencv-python numpy torch torchvision facenet-pytorch Pillow pandas
-```
-
-Expected output (truncated):
-
-```
-Collecting opencv-python
-  Using cached opencv_python-4.12.0.88-cp37-abi3-win_amd64.whl
-...
-Successfully installed MarkupSafe-3.0.3 Pillow-12.0.0 ... facenet-pytorch-2.5.3 ...
-```
-
-### Step 6: Prepare Your Dataset
-
-1. **Add face images** to the `dataset/` folder:
-
-   ```
-   dataset/
-   ├── john_doe.jpg      # Name files as: firstname_lastname.jpg
-   ├── jane_smith.png    # Or: firstname.jpg
-   ├── alice_wilson.jpeg # Supports: .jpg, .jpeg, .png
-   └── bob_jones.jpg
-   ```
-
-2. **Image requirements:**
-   - Clear, front-facing photos
-   - Good lighting
-   - Single person per image
-   - Recommended size: 200x200px or larger
-
-### Step 7: Create Face Encodings (One-Time Setup)
-
-Run the encoding setup:
-
-```powershell
-Rscript quick_setup.R
-```
-
-Expected output:
-
-```
-🎯 R Facial Recognition - Quick Setup
-=====================================
-
-📄 Created encode_faces.py
-🔄 Running face encoding...
-Starting face encoding...
-Using device: cpu
-Processing abdullah.jpeg...
-  ✓ Encoded abdullah.jpeg
-Processing john.jpeg...
-  ✓ Encoded john.jpeg
-Processing salma.JPG...
-  ✓ Encoded salma.JPG
-Processing seif.jpeg...
-  ✓ Encoded seif.jpeg
-
-✅ Saved 4 face encodings!
-People encoded: abdullah, john, salma, seif
-✅ Face encodings created successfully!
-```
-
-**Files created:**
-
-- `face_encodings.pkl` - Contains the encoded face data
-- `encode_faces.py` - Generated Python script
-
-### Step 8: Run Face Recognition
-
-Start the facial recognition system:
-
-```powershell
-Rscript working_recognition.R
-```
-
-Expected output:
-
-```
-🎯 Facial Recognition Attendance System
-=======================================
-
-✅ Face encodings found!
-📄 Created face_recognition.py
-🚀 Starting face recognition...
-   (This will open a camera window)
-
-Loading face recognition system...
-Loaded 4 face encodings
-Known people: abdullah, john, salma, seif
-Using device: cpu
-
-Initializing camera...
-
-🎥 Face Recognition Started!
-Controls:
-- Press SPACE to capture and match faces
-- Press Q to quit
-- Press A to add to attendance log
-```
-
-### Step 9: Using the Camera Interface
-
-When the camera window opens:
-
-1. **Position yourself** in front of the camera
-2. **Press SPACE** to capture and analyze your face
-3. **View results** in the terminal:
-   ```
-   📸 Capturing and processing faces...
-   🔍 Detected 1 face(s)
-   👤 Face 1: seif (0.87)
-   ```
-4. **Press A** to view attendance log:
-   ```
-   📝 Current attendance log:
-     2025-11-22 23:39:53 - seif (0.87)
-   ```
-5. **Press Q** to quit the system
-
-### Step 10: Check Results
-
-After quitting, the system will save:
-
-```
-💾 Attendance log saved to attendance_20251122_233953.csv
-Total entries: 4
-
-✅ Face recognition session ended
-✅ Face recognition completed!
-```
-
-**Generated files:**
-
-- `attendance_YYYYMMDD_HHMMSS.csv` - Attendance records
-- `face_recognition.py` - Generated recognition script
-
-## Expected File Structure After Setup
-
-```
-R/
-├── venv/                    # Virtual environment
-│   ├── Scripts/
-│   │   ├── python.exe      # Python interpreter
-│   │   └── pip.exe         # Package manager
-│   └── Lib/                # Installed packages
-├── dataset/                 # Your face images
-│   ├── person1.jpg
-│   └── person2.jpg
-├── quick_setup.R           # Encoding setup script
-├── working_recognition.R   # Main recognition script
-├── face_encodings.pkl      # Generated: Face data
-├── face_recognition.py     # Generated: Recognition script
-├── encode_faces.py         # Generated: Encoding script
-├── attendance_*.csv        # Generated: Attendance logs
-└── README.md              # This file
-```
-
-## Common Terminal Commands
-
-```powershell
-# Navigate to project
-cd "e:\attendanceFacialRecognition\R"
-
-# Activate environment (if not active)
-& ".\venv\Scripts\Activate.ps1"
-
-# Create new encodings (after adding new people)
-Rscript quick_setup.R
-
-# Run recognition system
-Rscript working_recognition.R
-
-# View attendance files
-Get-ChildItem -Name "attendance_*.csv"
-
-# Check Python packages
-pip list
-```
-
-## Success Indicators
-
-✅ **Virtual environment created** - See `(venv)` in prompt  
-✅ **Packages installed** - No error messages during pip install  
-✅ **Face encodings created** - See "✅ Saved X face encodings!" message  
-✅ **Camera opens** - Window appears with camera feed  
-✅ **Recognition works** - See confidence scores like "seif (0.87)"  
-✅ **Attendance logged** - CSV file created with timestamp
-
-## Attendance Logging
-
-Load the attendance logging functions:
+## Configuration (setup/config.R)
 
 ```r
-source("attendance_logger.R")
+FACE_ENCODINGS_FILE <- "face_encodings.pkl"
+CAMERA_WIDTH <- 1280
+CAMERA_HEIGHT <- 720
+STABILITY_DURATION <- 2.0         # Seconds to hold face for capture
+SIMILARITY_THRESHOLD <- 0.45      # Match sensitivity (0-1)
 ```
 
-**Available Functions:**
+---
 
-- `log_attendance(name, similarity)` - Log attendance entry
-- `generate_daily_report(date)` - Generate daily attendance report
-- `get_attendance_summary()` - Get overall attendance summary
-- `export_monthly_report(year, month)` - Export monthly report
+## Troubleshooting
 
-**Example Usage:**
+### "Face encodings not found"
+Run `Rscript setup/quick_setup.R` first.
 
-```r
-# Generate today's report
-generate_daily_report()
+### "Conda environment not found"
+Create conda environment: `conda create -n faceenv python=3.9`
 
-# Get overall summary
-get_attendance_summary()
+### "No courses found"
+Check your Firestore "courses" collection exists and has data.
 
-# Export current month report
-export_monthly_report()
-```
+### "Login failed"
+Ensure you enter the correct lecturerUsername and lecturerPassword for the selected course.
 
-## Technical Details
+### "API server not starting"
+Install plumber: `install.packages("plumber")`
 
-### Architecture
+### "CORS error in React"
+The API server includes CORS headers. Make sure you're running the latest `api_server.R`.
 
-This system uses a **hybrid approach**:
+---
 
-- **R scripts** manage the workflow, user interface, and file operations
-- **Python scripts** (generated by R) handle the deep learning computations
-- **Virtual environment** (`r_python_env`) contains all Python dependencies
+## Summary
 
-### Dependencies
+**Desktop App (main.R):**
+1. `conda create -n faceenv python=3.9` + install packages
+2. Add images to `dataset/`
+3. `Rscript setup/quick_setup.R` (once)
+4. `Rscript main.R` (to run)
 
-**R Packages:**
-
-- `reticulate`: Interface with Python (for system calls, not direct integration)
-
-**Python Libraries:**
-
-- `facenet-pytorch`: Face detection (MTCNN) and encoding (InceptionResnetV1)
-- `opencv-python`: Computer vision and camera operations
-- `torch`: Deep learning framework
-- `numpy`: Numerical computing
-- `PIL`: Image processing
-- `pandas`: Data manipulation for attendance logs
-
-### Face Recognition Pipeline
-
-1. **Face Detection**: Uses MTCNN (Multi-task CNN) to detect faces in images
-2. **Face Encoding**: Uses InceptionResnetV1 (FaceNet) to generate 512-dimensional face embeddings
-3. **Face Matching**: Uses cosine similarity to match faces against known encodings
-4. **Threshold**: Similarity threshold of 0.45 (configurable)
-
-### File Formats
-
-- **Face Encodings**: Saved as Python pickle file (`face_encodings.pkl`)
-- **Attendance Logs**: CSV format with columns: name, timestamp, date, time, similarity_score
-- **Generated Scripts**: Python files created by R for execution
-
-## Configuration
-
-Key parameters you can adjust in `working_recognition.R`:
-
-- **Similarity Threshold**: Currently set to 0.45 (higher = more strict matching)
-- **Camera Index**: Change camera source if multiple cameras available
-
-## Troubleshooting Common Issues
-
-### Issue 1: "Python not found" or "Access denied"
-
-**Problem:** Windows Store Python restrictions or wrong Python path
-**Solution:** Create virtual environment as shown in Step 3-5 above
-
-### Issue 2: "No module named 'cv2'" or similar
-
-**Problem:** Missing Python packages
-**Solution:**
-
-```powershell
-# Activate venv first
-& ".\venv\Scripts\Activate.ps1"
-# Then reinstall packages
-pip install opencv-python numpy torch torchvision facenet-pytorch Pillow pandas
-```
-
-### Issue 3: Camera not opening
-
-**Problem:** Camera in use by another application or permissions
-**Solution:**
-
-- Close Skype, Teams, or other camera apps
-- Check Windows Camera privacy settings
-- Try running PowerShell as Administrator
-
-### Issue 4: "No faces detected" repeatedly
-
-**Problem:** Poor lighting or camera positioning
-**Solution:**
-
-- Ensure good lighting on your face
-- Position face clearly in camera view
-- Check if camera is working in other apps first
-
-### Issue 5: Low recognition accuracy
-
-**Problem:** Poor quality dataset images or wrong threshold
-**Solution:**
-
-- Use high-quality, well-lit photos in dataset
-- Add multiple images per person
-- Ensure faces are front-facing and clear
-
-### Issue 6: R script errors
-
-**Problem:** Syntax or path issues
-**Solution:**
-
-```powershell
-# Check current directory
-pwd
-# Should be in: E:\attendanceFacialRecognition\R
-
-# Check files exist
-ls working_recognition.R
-ls quick_setup.R
-```
-
-### Issue 7: Virtual environment activation fails
-
-**Problem:** PowerShell execution policy
-**Solution:**
-
-```powershell
-# Set execution policy for current session
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-# Then try activation again
-& ".\venv\Scripts\Activate.ps1"
-```
-
-## Performance Notes
-
-- **Processing Speed**: Real-time on most modern hardware
-- **Memory Usage**: Scales with dataset size (~512 numbers per face)
-- **GPU Support**: Automatically detects and uses CUDA if available
-
-## Example Usage
-
-### First Time Setup
-
-```r
-# 1. Add face images to dataset/ folder
-# 2. Run encoding setup
-Rscript quick_setup.R
-```
-
-Output:
-
-```
-🎯 R Facial Recognition - Quick Setup
-✅ Saved 4 face encodings!
-People encoded: abdullah, john, salma, seif
-```
-
-### Running Recognition
-
-```r
-Rscript working_recognition.R
-```
-
-Output:
-
-```
-🎯 Facial Recognition Attendance System
-✅ Face encodings found!
-🎥 Face Recognition Started!
-
-# During recognition:
-👤 Face 1: seif (0.87)
-👤 Face 2: Unknown (0.23)
-
-💾 Attendance log saved to attendance_20251122_225934.csv
-```
-
-## System Benefits
-
-- ✅ **No complex R-Python integration issues**
-- ✅ **Works with Windows Store Python or any Python installation**
-- ✅ **Easy to understand and modify**
-- ✅ **Reliable attendance logging**
-- ✅ **High accuracy face recognition**
-- ✅ **Real-time performance**
+**React Integration (api_server.R):**
+1. Same setup as above
+2. `install.packages("plumber")` in R
+3. `Rscript api_server.R` (starts API on port 8000)
+4. Connect React to `http://localhost:8000/api/*`

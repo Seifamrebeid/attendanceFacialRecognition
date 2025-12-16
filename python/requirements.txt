@@ -1,7 +1,10 @@
 opencv-python
 numpy
 pillow
+torch
+torchvision
+facenet-pytorch
 insightface
 onnxruntime
 scikit-learn
-faiss-cpu     # optional
+faiss-cpu
