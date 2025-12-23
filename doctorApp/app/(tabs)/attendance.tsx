@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     header: {
-        backgroundColor: '#1a1a2e',
+        backgroundColor: '#10b981',
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
@@ -371,8 +371,8 @@ const styles = StyleSheet.create({
         borderColor: '#E0E0E0',
     },
     weekButtonActive: {
-        backgroundColor: '#667eea',
-        borderColor: '#667eea',
+        backgroundColor: '#10b981',
+        borderColor: '#10b981',
     },
     weekButtonText: {
         fontSize: 14,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#667eea',
+        backgroundColor: '#10b981',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     },
     timeText: {
         fontSize: 10,
-        color: '#667eea',
+        color: '#10b981',
         marginTop: 2,
     },
     statusButtons: {
